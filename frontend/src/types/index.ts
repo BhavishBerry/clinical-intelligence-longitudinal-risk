@@ -1,0 +1,160 @@
+// ============ USER & AUTH ============
+export type UserRole = 'doctor' | 'nurse' | 'admin';
+
+export interface User {
+    id: string;
+    email: string;
+    password: string;
+    name: string;
+    role: UserRole;
+    assignedPatientIds: string[];
+}
+
+// ============ PATIENT ============
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export interface Patient {
+    id: string;
+    name: string;
+    age: number;
+    sex: 'male' | 'female' | 'other';
+    mrn: string;
+    location: string;
+    currentRiskScore: number;
+    currentRiskLevel: RiskLevel;
+    previousRiskLevel: RiskLevel;
+    admissionDate: string;
+}
+
+// ============ VITALS ============
+export type VitalType = 'heartRate' | 'bloodPressure' | 'oxygenSat' |
+    'respiratoryRate' | 'temperature' | 'map';
+
+export interface VitalReading {
+    id: string;
+    patientId: string;
+    type: VitalType;
+    value: number;
+    value2?: number;
+    unit: string;
+    timestamp: string;
+    normalRange: { min: number; max: number };
+}
+
+// ============ LABS ============
+export type LabType = 'glucose' | 'lactate' | 'creatinine' |
+    'cholesterolTotal' | 'cholesterolLDL' | 'cholesterolHDL' |
+    'urineOutput';
+
+export interface LabResult {
+    id: string;
+    patientId: string;
+    type: LabType;
+    value: number;
+    unit: string;
+    timestamp: string;
+    normalRange: { min: number; max: number };
+}
+
+// ============ RISK SCORING ============
+export interface RiskScoreEntry {
+    patientId: string;
+    score: number;
+    level: RiskLevel;
+    timestamp: string;
+    previousLevel?: RiskLevel;
+}
+
+// ============ ALERTS ============
+export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type AlertStatus = 'active' | 'acknowledged' | 'dismissed';
+export type FeedbackType = 'useful' | 'not_useful' | null;
+
+export interface AlertDriver {
+    factor: string;
+    detail: string;
+}
+
+export interface Alert {
+    id: string;
+    patientId: string;
+    patientName: string;
+    time: string;
+    severity: AlertSeverity;
+    title: string;
+    explanation: string;
+    drivers: AlertDriver[];
+    status: AlertStatus;
+    feedback: FeedbackType;
+    acknowledgedBy?: string;
+    acknowledgedAt?: string;
+}
+
+// ============ CLINICAL EVENTS ============
+export type EventType = 'admission' | 'discharge' | 'procedure' |
+    'medication' | 'labTest' | 'consultation';
+
+export interface ClinicalEvent {
+    id: string;
+    patientId: string;
+    type: EventType;
+    description: string;
+    timestamp: string;
+}
+
+// ============ TREND DATA ============
+export type TrendDirection = 'up' | 'down' | 'stable';
+
+export interface TrendData {
+    metric: string;
+    direction: TrendDirection;
+    percentChange: number;
+    duration: string;
+    isAbnormal: boolean;
+}
+
+// ============ UPLOAD/INGESTION ============
+export interface UploadedFile {
+    name: string;
+    type: 'csv' | 'json' | 'pdf';
+    size: number;
+    parsedData: Record<string, unknown>[];
+    columnMappings: ColumnMapping[];
+}
+
+export interface ColumnMapping {
+    sourceColumn: string;
+    targetField: VitalType | LabType | 'skip';
+}
+
+export interface ImportResult {
+    success: boolean;
+    patientsAdded: number;
+    recordsAdded: number;
+    errors: string[];
+}
+
+// ============ FEEDBACK LOG ============
+export interface FeedbackLog {
+    id: string;
+    alertId: string;
+    userId: string;
+    feedback: FeedbackType;
+    timestamp: string;
+}
+
+// ============ CHART DATA ============
+export interface ChartDataPoint {
+    timestamp: string;
+    value: number;
+    value2?: number;
+    label?: string;
+    isAbnormal?: boolean;
+}
+
+export interface TimeSeriesData {
+    label: string;
+    unit: string;
+    data: ChartDataPoint[];
+    normalRange?: { min: number; max: number };
+}
