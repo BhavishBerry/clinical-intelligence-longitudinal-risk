@@ -4,7 +4,7 @@ import {
     Activity, FileText, Pill, Calendar, AlertTriangle,
     Stethoscope, TestTube, ClipboardList
 } from 'lucide-react';
-import { ClinicalEvent, VitalReading, LabResult } from '@/types';
+// Type imports for documentation - all used in type definitions below
 import { cn } from '@/utils/cn';
 
 interface PatientTimelineProps {

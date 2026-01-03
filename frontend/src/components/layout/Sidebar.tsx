@@ -2,7 +2,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context';
 import {
     LayoutDashboard,
-    Users,
     Bell,
     Upload,
     Settings,

@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { Button, Input, Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui';
-import { usePatients, useAlerts } from '@/context';
-import { Activity, Droplets, Heart, Wind, Thermometer, FileText, Plus } from 'lucide-react';
+import { usePatients } from '@/context';
+import { Activity, Heart, Wind, Thermometer, FileText, Plus } from 'lucide-react';
 import { VitalType, LabType } from '@/types';
 
 interface RecordDataFormProps {
@@ -135,8 +135,8 @@ export function RecordDataForm({ patientId, onDataAdded }: RecordDataFormProps) 
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${activeTab === tab
-                                    ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
-                                    : 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--accent))]'
+                                ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
+                                : 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--accent))]'
                                 }`}
                         >
                             {tab}

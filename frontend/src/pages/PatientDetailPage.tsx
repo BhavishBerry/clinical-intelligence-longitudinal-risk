@@ -3,20 +3,22 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout';
 import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { RiskBadge, RiskScoreGauge, RecordDataForm, PatientTimeline } from '@/components/patient';
+import { TimelineChart, RiskGauge } from '@/components/charts';
 import { useAlerts, useAuth, usePatients } from '@/context';
 import { rajGlucoseData, rajBPData, anitaCreatinineData, getRiskScoreHistory } from '@/mocks/mockVitals';
 import { ArrowLeft, AlertTriangle, Check, ThumbsUp, ThumbsDown, Activity, Heart, Wind } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { cn } from '@/utils/cn';
+import { api, RiskResult } from '@/services/api';
 
 type TabType = 'overview' | 'timeline' | 'record';
 
 export function PatientDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { getAlertsByPatient, acknowledgeAlert, setFeedback } = useAlerts();
+    const { getAlertsByPatient, acknowledgeAlert } = useAlerts();
     const { user } = useAuth();
-    const { getPatientById, getVitalsByPatientId, getLabsByPatientId } = usePatients();
+    const { getPatientById, getVitalsByPatientId } = usePatients();
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [refreshKey, setRefreshKey] = useState(0);
 
@@ -226,6 +228,7 @@ export function PatientDetailPage() {
                                                 dataKey="value"
                                                 stroke="hsl(var(--risk-high))"
                                                 strokeWidth={2}
+                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                 dot={(props: any) => {
                                                     const { cx, cy, payload } = props;
                                                     return (

@@ -3,8 +3,9 @@ import { MainLayout } from '@/components/layout';
 import { PatientCard, AddPatientModal } from '@/components/patient';
 import { Input, Button } from '@/components/ui';
 import { useAuth, useAlerts, usePatients } from '@/context';
-import { Search, AlertTriangle, Users, UserPlus } from 'lucide-react';
+import { Search, AlertTriangle, Users, UserPlus, TrendingUp } from 'lucide-react';
 import { RiskLevel } from '@/types';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export function DashboardPage() {
     const { user } = useAuth();
@@ -56,8 +57,9 @@ export function DashboardPage() {
                 </Button>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Stats Cards + Risk Distribution */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+                {/* Stats Cards */}
                 <div className="bg-[hsl(var(--card))] rounded-lg border p-4 flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-[hsl(var(--primary))]/10 flex items-center justify-center">
                         <Users className="w-6 h-6 text-[hsl(var(--primary))]" />
@@ -80,13 +82,48 @@ export function DashboardPage() {
 
                 <div className="bg-[hsl(var(--card))] rounded-lg border p-4 flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-[hsl(var(--risk-critical))]/10 flex items-center justify-center">
-                        <AlertTriangle className="w-6 h-6 text-[hsl(var(--risk-critical))]" />
+                        <TrendingUp className="w-6 h-6 text-[hsl(var(--risk-critical))]" />
                     </div>
                     <div>
                         <p className="text-2xl font-bold">
                             {patients.filter(p => p.currentRiskLevel === 'critical' || p.currentRiskLevel === 'high').length}
                         </p>
-                        <p className="text-sm text-[hsl(var(--muted-foreground))]">High/Critical Risk</p>
+                        <p className="text-sm text-[hsl(var(--muted-foreground))]">High/Critical</p>
+                    </div>
+                </div>
+
+                {/* Risk Distribution Pie Chart */}
+                <div className="bg-[hsl(var(--card))] rounded-lg border p-4">
+                    <p className="text-sm font-medium text-[hsl(var(--muted-foreground))] mb-2">Risk Distribution</p>
+                    <div className="h-24">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={[
+                                        { name: 'Low', value: patients.filter(p => p.currentRiskLevel === 'low').length, color: 'hsl(var(--risk-low))' },
+                                        { name: 'Medium', value: patients.filter(p => p.currentRiskLevel === 'medium').length, color: 'hsl(var(--risk-medium))' },
+                                        { name: 'High', value: patients.filter(p => p.currentRiskLevel === 'high').length, color: 'hsl(var(--risk-high))' },
+                                        { name: 'Critical', value: patients.filter(p => p.currentRiskLevel === 'critical').length, color: 'hsl(var(--risk-critical))' },
+                                    ].filter(d => d.value > 0)}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={20}
+                                    outerRadius={35}
+                                    dataKey="value"
+                                    paddingAngle={2}
+                                >
+                                    {[
+                                        { color: 'hsl(142, 76%, 36%)' },  // Low - green
+                                        { color: 'hsl(45, 93%, 47%)' },   // Medium - yellow
+                                        { color: 'hsl(25, 95%, 53%)' },   // High - orange
+                                        { color: 'hsl(0, 84%, 60%)' },    // Critical - red
+                                    ].map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
             </div>

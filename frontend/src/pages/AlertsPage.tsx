@@ -3,12 +3,12 @@ import { MainLayout } from '@/components/layout';
 import { Badge, Button, Card, CardContent } from '@/components/ui';
 import { useAlerts, useAuth } from '@/context';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Check, X, ThumbsUp, ThumbsDown, Clock } from 'lucide-react';
-import { Alert, AlertSeverity } from '@/types';
+import { AlertTriangle, Check, X, ThumbsUp, ThumbsDown, Clock, RefreshCw, Loader2 } from 'lucide-react';
+import { AlertSeverity } from '@/types';
 import { cn } from '@/utils/cn';
 
 export function AlertsPage() {
-    const { alerts, acknowledgeAlert, dismissAlert, setFeedback } = useAlerts();
+    const { alerts, acknowledgeAlert, dismissAlert, setFeedback, loading, error, refreshAlerts } = useAlerts();
     const { user } = useAuth();
     const navigate = useNavigate();
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'acknowledged' | 'dismissed'>('all');
@@ -54,9 +54,28 @@ export function AlertsPage() {
     return (
         <MainLayout>
             <div className="mb-6">
-                <h1 className="text-3xl font-bold mb-2">Alerts</h1>
+                <div className="flex items-center justify-between mb-2">
+                    <h1 className="text-3xl font-bold">Alerts</h1>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={refreshAlerts}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                        )}
+                        Refresh
+                    </Button>
+                </div>
                 <p className="text-[hsl(var(--muted-foreground))]">
-                    View and manage patient risk alerts
+                    {error ? (
+                        <span className="text-amber-500">⚠️ Using mock data (backend unavailable)</span>
+                    ) : (
+                        `View and manage patient risk alerts (${alerts.length} total)`
+                    )}
                 </p>
             </div>
 

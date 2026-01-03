@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { MainLayout } from '@/components/layout';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Badge } from '@/components/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { Upload, FileText, Check, AlertCircle, X } from 'lucide-react';
-import { cn } from '@/utils/cn';
 
 type UploadState = 'idle' | 'selected' | 'uploading' | 'success' | 'error';
 

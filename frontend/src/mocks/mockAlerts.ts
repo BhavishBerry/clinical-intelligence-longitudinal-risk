@@ -1,4 +1,4 @@
-import { Alert, AlertDriver } from '@/types';
+import { Alert } from '@/types';
 
 // Explanations derived from PRD examples
 const explanationTemplates = {

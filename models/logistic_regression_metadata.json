@@ -1,0 +1,49 @@
+{
+  "model_name": "logistic_regression",
+  "trained_at": "2026-01-03T15:26:42.311143",
+  "features": [
+    "age",
+    "sex",
+    "sugar_percent_change",
+    "sugar_trend_up",
+    "trend_duration_months",
+    "bp_percent_change",
+    "bp_trend_up",
+    "medication_delay",
+    "sugar_velocity",
+    "sugar_volatility",
+    "sugar_consecutive_increase",
+    "sugar_max_spike",
+    "sugar_time_since_baseline",
+    "bp_velocity",
+    "bp_volatility",
+    "bp_consecutive_increase",
+    "medication_delay_months"
+  ],
+  "metrics": {
+    "accuracy": 0.975,
+    "precision": 0.9090909090909091,
+    "recall": 1.0,
+    "f1": 0.9523809523809523,
+    "roc_auc": 1.0
+  },
+  "feature_importance": {
+    "sugar_percent_change": 0.895150143926665,
+    "medication_delay_months": 0.7738561823378738,
+    "sugar_volatility": 0.7385019187562107,
+    "sugar_max_spike": 0.7153616175501972,
+    "bp_percent_change": 0.6293281293269078,
+    "bp_volatility": 0.6056584124327322,
+    "sugar_velocity": 0.5644348966169965,
+    "medication_delay": 0.3884058158091733,
+    "trend_duration_months": 0.3294603017121922,
+    "sugar_time_since_baseline": 0.307842810588253,
+    "bp_velocity": 0.30719883648800533,
+    "sugar_consecutive_increase": 0.2536267647736428,
+    "bp_consecutive_increase": 0.23090333675736158,
+    "sugar_trend_up": 0.22785638434209168,
+    "bp_trend_up": 0.21871211930605888,
+    "sex": 0.15598569626789657,
+    "age": 0.11019299797143421
+  }
+}

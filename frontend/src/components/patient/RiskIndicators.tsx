@@ -1,6 +1,6 @@
 import { RiskLevel, TrendDirection } from '@/types';
 import { Badge, Card, CardContent } from '@/components/ui';
-import { TrendingUp, TrendingDown, Minus, ArrowRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { ChartDataPoint } from '@/types';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';

@@ -1,0 +1,49 @@
+{
+  "model_name": "gradient_boosting",
+  "trained_at": "2026-01-03T15:26:42.383654",
+  "features": [
+    "age",
+    "sex",
+    "sugar_percent_change",
+    "sugar_trend_up",
+    "trend_duration_months",
+    "bp_percent_change",
+    "bp_trend_up",
+    "medication_delay",
+    "sugar_velocity",
+    "sugar_volatility",
+    "sugar_consecutive_increase",
+    "sugar_max_spike",
+    "sugar_time_since_baseline",
+    "bp_velocity",
+    "bp_volatility",
+    "bp_consecutive_increase",
+    "medication_delay_months"
+  ],
+  "metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 1.0
+  },
+  "feature_importance": {
+    "sugar_volatility": 0.510582384778827,
+    "sugar_max_spike": 0.2356184785459597,
+    "sugar_percent_change": 0.191262494111211,
+    "trend_duration_months": 0.06253664256400246,
+    "age": 0.0,
+    "sex": 0.0,
+    "sugar_trend_up": 0.0,
+    "bp_trend_up": 0.0,
+    "medication_delay": 0.0,
+    "sugar_velocity": 0.0,
+    "sugar_consecutive_increase": 0.0,
+    "sugar_time_since_baseline": 0.0,
+    "bp_velocity": 0.0,
+    "bp_volatility": 0.0,
+    "bp_consecutive_increase": 0.0,
+    "medication_delay_months": 0.0,
+    "bp_percent_change": -6.928580642928585e-19
+  }
+}
