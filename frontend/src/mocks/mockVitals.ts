@@ -167,6 +167,7 @@ export const getRiskScoreHistory = (patientId: string): ChartDataPoint[] => {
     const patient = patientId;
 
     // Different patterns for different patients
+    // Only return data for demo patients with known history
     switch (patient) {
         case 'patient-1': // Raj - steadily increasing
             return generateTimeSeries(patientId, 45, 78, 6, 3);
@@ -181,6 +182,7 @@ export const getRiskScoreHistory = (patientId: string): ChartDataPoint[] => {
         case 'patient-6': // Emily - stable low
             return generateTimeSeries(patientId, 12, 15, 3, 2);
         default:
-            return generateTimeSeries(patientId, 30, 50, 6, 5);
+            // For new patients, return empty array (no fake history)
+            return [];
     }
 };

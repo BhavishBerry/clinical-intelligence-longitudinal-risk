@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { usePatients, useAlerts } from '@/context';
 import { Card, CardContent, Badge } from '@/components/ui';
 import {
@@ -6,6 +7,7 @@ import {
 } from 'lucide-react';
 // Type imports for documentation - all used in type definitions below
 import { cn } from '@/utils/cn';
+import { api } from '@/services/api';
 
 interface PatientTimelineProps {
     patientId: string;
@@ -14,7 +16,7 @@ interface PatientTimelineProps {
 type TimelineEvent = {
     id: string;
     timestamp: string;
-    type: 'vital' | 'lab' | 'event' | 'alert';
+    type: 'vital' | 'lab' | 'event' | 'alert' | 'note';
     title: string;
     description: string;
     icon: React.ReactNode;
@@ -22,41 +24,59 @@ type TimelineEvent = {
 };
 
 export function PatientTimeline({ patientId }: PatientTimelineProps) {
-    const { getVitalsByPatientId, getLabsByPatientId, getEventsByPatientId } = usePatients();
+    const { getVitalsByPatientId } = usePatients();
     const { getAlertsByPatient } = useAlerts();
+    const [vitals, setVitals] = useState<any[]>([]);
+    const [labs, setLabs] = useState<any[]>([]);
+    const [notes, setNotes] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const vitals = getVitalsByPatientId(patientId);
-    const labs = getLabsByPatientId(patientId);
-    const events = getEventsByPatientId(patientId);
+    // Fetch all data asynchronously
+    useEffect(() => {
+        setLoading(true);
+        Promise.all([
+            getVitalsByPatientId(patientId),
+            api.getPatientLabs(patientId),
+            api.getPatientNotes(patientId),
+        ])
+            .then(([vitalsData, labsData, notesData]) => {
+                setVitals(vitalsData);
+                setLabs(labsData);
+                setNotes(notesData);
+            })
+            .catch(console.error)
+            .finally(() => setLoading(false));
+    }, [patientId, getVitalsByPatientId]);
+
     const alerts = getAlertsByPatient(patientId);
 
     // Convert all data to timeline events
     const timelineEvents: TimelineEvent[] = [
         ...vitals.map((v): TimelineEvent => ({
-            id: v.id,
-            timestamp: v.timestamp,
+            id: v.id || Math.random().toString(),
+            timestamp: v.timestamp || v.recorded_at || new Date().toISOString(),
             type: 'vital',
-            title: formatVitalType(v.type),
-            description: `${v.value}${v.value2 ? `/${v.value2}` : ''} ${v.unit}`,
+            title: formatVitalType(v.type || v.vital_type),
+            description: `${v.value}${v.value2 ? `/${v.value2}` : ''} ${v.unit || ''}`,
             icon: <Activity className="w-4 h-4" />,
-            isAbnormal: v.value < v.normalRange.min || v.value > v.normalRange.max,
+            isAbnormal: v.normalRange ? (v.value < v.normalRange.min || v.value > v.normalRange.max) : false,
         })),
         ...labs.map((l): TimelineEvent => ({
             id: l.id,
-            timestamp: l.timestamp,
+            timestamp: l.recorded_at,
             type: 'lab',
-            title: formatLabType(l.type),
-            description: `${l.value} ${l.unit}`,
+            title: formatLabType(l.lab_type),
+            description: `${l.value} ${l.unit || ''}`,
             icon: <TestTube className="w-4 h-4" />,
-            isAbnormal: l.value < l.normalRange.min || l.value > l.normalRange.max,
+            isAbnormal: false,
         })),
-        ...events.map((e): TimelineEvent => ({
-            id: e.id,
-            timestamp: e.timestamp,
-            type: 'event',
-            title: formatEventType(e.type),
-            description: e.description,
-            icon: getEventIcon(e.type),
+        ...notes.map((n): TimelineEvent => ({
+            id: n.id,
+            timestamp: n.created_at,
+            type: 'note',
+            title: formatNoteType(n.note_type),
+            description: n.content.slice(0, 100) + (n.content.length > 100 ? '...' : ''),
+            icon: <FileText className="w-4 h-4" />,
             isAbnormal: false,
         })),
         ...alerts.map((a): TimelineEvent => ({
@@ -64,7 +84,7 @@ export function PatientTimeline({ patientId }: PatientTimelineProps) {
             timestamp: a.time,
             type: 'alert',
             title: a.title,
-            description: a.explanation.slice(0, 100) + '...',
+            description: a.explanation ? (a.explanation.slice(0, 100) + '...') : '',
             icon: <AlertTriangle className="w-4 h-4" />,
             isAbnormal: true,
         })),
@@ -82,6 +102,16 @@ export function PatientTimeline({ patientId }: PatientTimelineProps) {
         acc[date].push(event);
         return acc;
     }, {} as Record<string, TimelineEvent[]>);
+
+    if (loading) {
+        return (
+            <Card>
+                <CardContent className="p-8 text-center">
+                    <p className="text-[hsl(var(--muted-foreground))]">Loading timeline...</p>
+                </CardContent>
+            </Card>
+        );
+    }
 
     if (timelineEvents.length === 0) {
         return (
@@ -165,11 +195,17 @@ export function PatientTimeline({ patientId }: PatientTimelineProps) {
 function formatVitalType(type: string): string {
     const map: Record<string, string> = {
         heartRate: 'Heart Rate',
+        heart_rate: 'Heart Rate',
         bloodPressure: 'Blood Pressure',
+        blood_pressure: 'Blood Pressure',
         oxygenSat: 'Oxygen Saturation',
+        oxygen_sat: 'Oxygen Saturation',
         respiratoryRate: 'Respiratory Rate',
+        respiratory_rate: 'Respiratory Rate',
         temperature: 'Temperature',
         map: 'Mean Arterial Pressure',
+        glucose: 'Blood Glucose',
+        blood_sugar: 'Blood Glucose',
     };
     return map[type] || type;
 }
@@ -183,6 +219,17 @@ function formatLabType(type: string): string {
         cholesterolLDL: 'LDL Cholesterol',
         cholesterolHDL: 'HDL Cholesterol',
         urineOutput: 'Urine Output',
+    };
+    return map[type] || type;
+}
+
+function formatNoteType(type: string): string {
+    const map: Record<string, string> = {
+        observation: 'Observation',
+        consultation: 'Consultation',
+        procedure: 'Procedure Note',
+        medication: 'Medication Note',
+        progress: 'Progress Note',
     };
     return map[type] || type;
 }

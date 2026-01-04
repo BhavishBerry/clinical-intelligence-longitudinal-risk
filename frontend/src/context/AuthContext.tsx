@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
-import { User } from '@/types';
-import { findUserByCredentials } from '@/mocks/mockUsers';
+import { api } from '@/services/api';
+
+interface User {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+}
 
 interface AuthContextType {
     user: User | null;
@@ -26,18 +32,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         setError(null);
 
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        try {
+            // Call real database API
+            const response = await api.login(email, password);
 
-        const foundUser = findUserByCredentials(email, password);
-
-        if (foundUser) {
-            setUser(foundUser);
-            sessionStorage.setItem('currentUser', JSON.stringify(foundUser));
+            setUser(response.user);
+            sessionStorage.setItem('currentUser', JSON.stringify(response.user));
+            sessionStorage.setItem('authToken', response.token);
             setIsLoading(false);
             return true;
-        } else {
-            setError('Invalid email or password');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Login failed');
             setIsLoading(false);
             return false;
         }
@@ -46,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const logout = useCallback(() => {
         setUser(null);
         sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('authToken');
     }, []);
 
     return (
@@ -71,3 +77,4 @@ export function useAuth() {
     }
     return context;
 }
+

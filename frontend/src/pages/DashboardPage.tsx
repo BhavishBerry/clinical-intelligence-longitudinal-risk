@@ -2,44 +2,54 @@ import { useState, useMemo } from 'react';
 import { MainLayout } from '@/components/layout';
 import { PatientCard, AddPatientModal } from '@/components/patient';
 import { Input, Button } from '@/components/ui';
-import { useAuth, useAlerts, usePatients } from '@/context';
-import { Search, AlertTriangle, Users, UserPlus, TrendingUp } from 'lucide-react';
+import { useAlerts, usePatients } from '@/context';
+import { Search, AlertTriangle, Users, UserPlus, TrendingUp, ArrowUpDown, Zap } from 'lucide-react';
 import { RiskLevel } from '@/types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export function DashboardPage() {
-    const { user } = useAuth();
     const { activeAlerts } = useAlerts();
     const { patients: allPatients } = usePatients();
     const [searchQuery, setSearchQuery] = useState('');
     const [riskFilter, setRiskFilter] = useState<RiskLevel | 'all'>('all');
     const [showAddModal, setShowAddModal] = useState(false);
+    const [sortMode, setSortMode] = useState<'risk' | 'worsening' | 'name'>('risk');
 
     // Get patients based on role
     const patients = useMemo(() => {
-        if (user?.role === 'admin') {
-            return allPatients;
-        }
-        return allPatients.filter(p => user?.assignedPatientIds?.includes(p.id));
-    }, [user, allPatients]);
+        // Show all patients for now (role-based filtering can be added later)
+        return allPatients;
+    }, [allPatients]);
 
     // Apply filters
     const filteredPatients = useMemo(() => {
         return patients.filter((patient) => {
             const matchesSearch = patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                patient.mrn.toLowerCase().includes(searchQuery.toLowerCase());
+                (patient.mrn?.toLowerCase() || '').includes(searchQuery.toLowerCase());
             const matchesRisk = riskFilter === 'all' || patient.currentRiskLevel === riskFilter;
             return matchesSearch && matchesRisk;
         });
     }, [patients, searchQuery, riskFilter]);
 
-    // Sort by risk level (critical first)
+    // Sort by selected mode
     const sortedPatients = useMemo(() => {
         const riskOrder: Record<RiskLevel, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-        return [...filteredPatients].sort(
-            (a, b) => riskOrder[a.currentRiskLevel] - riskOrder[b.currentRiskLevel]
-        );
-    }, [filteredPatients]);
+
+        return [...filteredPatients].sort((a, b) => {
+            if (sortMode === 'worsening') {
+                // Sort by risk acceleration (highest score first, then by score increase potential)
+                const aVelocity = a.currentRiskScore - (a.previousRiskScore || a.currentRiskScore);
+                const bVelocity = b.currentRiskScore - (b.previousRiskScore || b.currentRiskScore);
+                if (bVelocity !== aVelocity) return bVelocity - aVelocity;
+                return b.currentRiskScore - a.currentRiskScore;
+            }
+            if (sortMode === 'name') {
+                return a.name.localeCompare(b.name);
+            }
+            // Default: risk level
+            return riskOrder[a.currentRiskLevel] - riskOrder[b.currentRiskLevel];
+        });
+    }, [filteredPatients, sortMode]);
 
     return (
         <MainLayout>
@@ -152,6 +162,29 @@ export function DashboardPage() {
                                 }`}
                         >
                             {level === 'all' ? 'All' : level.charAt(0).toUpperCase() + level.slice(1)}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Sort Mode Selector */}
+                <div className="flex gap-2 ml-auto items-center">
+                    <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Sort:</span>
+                    {[
+                        { id: 'risk', label: 'Risk Level', icon: AlertTriangle },
+                        { id: 'worsening', label: 'Getting Worse', icon: Zap },
+                        { id: 'name', label: 'Name', icon: Users },
+                    ].map(({ id, label, icon: Icon }) => (
+                        <button
+                            key={id}
+                            onClick={() => setSortMode(id as 'risk' | 'worsening' | 'name')}
+                            className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${sortMode === id
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-secondary hover:bg-accent'
+                                }`}
+                        >
+                            <Icon className="w-3 h-3" />
+                            {label}
                         </button>
                     ))}
                 </div>

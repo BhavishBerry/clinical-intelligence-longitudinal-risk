@@ -1,0 +1,53 @@
+{
+  "trained_at": "2026-01-03T23:32:48.660553",
+  "model_type": "Gradient Boosting",
+  "datasets": [
+    "diabetes",
+    "heart",
+    "icu"
+  ],
+  "total_samples": 75317,
+  "features": [
+    "age",
+    "sex",
+    "sugar_percent_change",
+    "sugar_trend_up",
+    "trend_duration_months",
+    "bp_percent_change",
+    "bp_trend_up",
+    "medication_delay",
+    "sugar_velocity",
+    "sugar_volatility",
+    "sugar_consecutive_increase",
+    "sugar_max_spike",
+    "sugar_time_since_baseline",
+    "bp_velocity",
+    "bp_volatility",
+    "bp_consecutive_increase",
+    "medication_delay_months"
+  ],
+  "results": {
+    "Logistic Regression": {
+      "accuracy": 0.983072225172597,
+      "precision": 0.986284289276808,
+      "recall": 0.9785567010309278,
+      "f1": 0.9824052991099151,
+      "roc_auc": 0.9922068261743697
+    },
+    "Gradient Boosting": {
+      "accuracy": 0.9889139670738184,
+      "precision": 0.9947104677060133,
+      "recall": 0.9822680412371134,
+      "f1": 0.9884501002835604,
+      "roc_auc": 0.9994394597368128
+    },
+    "Random Forest": {
+      "accuracy": 0.9891795007966012,
+      "precision": 0.9956788402564818,
+      "recall": 0.9818556701030928,
+      "f1": 0.9887189424873694,
+      "roc_auc": 0.9993955172485296
+    }
+  },
+  "best_roc_auc": 0.9994394597368128
+}

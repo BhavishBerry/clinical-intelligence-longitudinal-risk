@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AlertProvider, PatientProvider } from '@/context';
 import { ProtectedRoute } from '@/components/auth';
+import { SafetyDisclaimer } from '@/components/SafetyDisclaimer';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AlertsPage } from './pages/AlertsPage';
@@ -14,27 +15,33 @@ function App() {
       <AuthProvider>
         <PatientProvider>
           <AlertProvider>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={<LoginPage />} />
+            <div className="min-h-screen flex flex-col">
+              <div className="flex-1">
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/login" element={<LoginPage />} />
 
-              {/* Protected Routes - All Roles */}
-              <Route element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'admin']} />}>
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/patients/:id" element={<PatientDetailPage />} />
-                <Route path="/alerts" element={<AlertsPage />} />
-              </Route>
+                  {/* Protected Routes - All Roles */}
+                  <Route element={<ProtectedRoute allowedRoles={['doctor', 'nurse', 'admin']} />}>
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/patients/:id" element={<PatientDetailPage />} />
+                    <Route path="/alerts" element={<AlertsPage />} />
+                  </Route>
 
-              {/* Admin Only Routes */}
-              <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-                <Route path="/upload" element={<UploadPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-              </Route>
+                  {/* Admin Only Routes */}
+                  <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                    <Route path="/upload" element={<UploadPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                  </Route>
 
-              {/* Default Redirect */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
+                  {/* Default Redirect */}
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </div>
+              {/* Clinical Decision Support Disclaimer */}
+              <SafetyDisclaimer variant="footer" />
+            </div>
           </AlertProvider>
         </PatientProvider>
       </AuthProvider>
@@ -43,4 +50,3 @@ function App() {
 }
 
 export default App;
-

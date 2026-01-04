@@ -1,7 +1,23 @@
 import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
-import { Alert, FeedbackType } from '@/types';
-import { mockAlerts as initialAlerts } from '@/mocks/mockAlerts';
-import { api, ApiAlert } from '@/services/api';
+import { api, Alert as ApiAlert } from '@/services/api';
+
+// Enhanced alert lifecycle states
+export type AlertStatus = 'new' | 'reviewed' | 'monitoring' | 'action_taken' | 'dismissed';
+
+export interface Alert {
+    id: string;
+    patientId: string;
+    patientName?: string;
+    time: string;
+    severity: 'critical' | 'high' | 'medium' | 'low';
+    title: string;
+    explanation: string;
+    status: AlertStatus;
+    feedback?: 'helpful' | 'not_helpful' | null;
+    reviewedBy?: string;
+    reviewedAt?: string;
+    actionNote?: string;
+}
 
 interface AlertContextType {
     alerts: Alert[];
@@ -9,108 +25,90 @@ interface AlertContextType {
     loading: boolean;
     error: string | null;
     refreshAlerts: () => Promise<void>;
-    acknowledgeAlert: (alertId: string, userId: string) => void;
-    dismissAlert: (alertId: string, userId: string) => void;
-    setFeedback: (alertId: string, feedback: FeedbackType) => void;
+    acknowledgeAlert: (alertId: string) => Promise<void>;
+    dismissAlert: (alertId: string, userId?: string) => Promise<void>;
+    setFeedback: (alertId: string, feedback: 'useful' | 'not_useful') => void;
     getAlertsByPatient: (patientId: string) => Alert[];
 }
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
 // Convert API alert to frontend Alert type
+// Map old status to new lifecycle status
+const mapApiStatus = (status: string): AlertStatus => {
+    switch (status) {
+        case 'active': return 'new';
+        case 'acknowledged': return 'reviewed';
+        case 'dismissed': return 'dismissed';
+        default: return 'new';
+    }
+};
+
 const convertApiAlert = (apiAlert: ApiAlert): Alert => ({
     id: apiAlert.id,
     patientId: apiAlert.patient_id,
-    patientName: apiAlert.patient_name,
-    time: apiAlert.time,
+    time: apiAlert.created_at,
     severity: apiAlert.severity,
     title: apiAlert.title,
-    explanation: apiAlert.explanation,
-    drivers: apiAlert.drivers,
-    status: apiAlert.status,
+    explanation: apiAlert.explanation || '',
+    status: mapApiStatus(apiAlert.status),
     feedback: null,
 });
 
 export function AlertProvider({ children }: { children: ReactNode }) {
-    const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
-    const [loading, setLoading] = useState(false);
+    const [alerts, setAlerts] = useState<Alert[]>([]);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [useBackend, setUseBackend] = useState(true);
 
-    // Fetch alerts from backend
+    // Fetch alerts from database
     const refreshAlerts = useCallback(async () => {
-        if (!useBackend) return;
-
         setLoading(true);
         setError(null);
 
         try {
-            const response = await api.getAlerts();
-            const backendAlerts = response.alerts.map(convertApiAlert);
-
-            // Merge with any local state (preserving acknowledge/dismiss status)
-            setAlerts((prevAlerts) => {
-                const localState = new Map(prevAlerts.map(a => [a.id, a]));
-                return backendAlerts.map(newAlert => {
-                    const existing = localState.get(newAlert.id);
-                    if (existing && existing.status !== 'active') {
-                        // Keep local status if already acknowledged/dismissed
-                        return { ...newAlert, status: existing.status, feedback: existing.feedback };
-                    }
-                    return newAlert;
-                });
-            });
+            const data = await api.getAlerts();
+            setAlerts(data.map(convertApiAlert));
         } catch (err) {
-            console.warn('Backend not available, using mock data:', err);
-            setError('Backend not available');
-            setUseBackend(false);
-            // Fall back to mock data (already set as initial state)
+            console.error('Failed to fetch alerts:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load alerts');
         } finally {
             setLoading(false);
         }
-    }, [useBackend]);
+    }, []);
 
     // Fetch on mount
     useEffect(() => {
         refreshAlerts();
     }, [refreshAlerts]);
 
-    const acknowledgeAlert = useCallback((alertId: string, userId: string) => {
-        setAlerts((prev) =>
-            prev.map((alert) =>
-                alert.id === alertId
-                    ? {
-                        ...alert,
-                        status: 'acknowledged' as const,
-                        acknowledgedBy: userId,
-                        acknowledgedAt: new Date().toISOString(),
-                    }
-                    : alert
-            )
-        );
+    const acknowledgeAlert = useCallback(async (alertId: string) => {
+        try {
+            await api.acknowledgeAlert(alertId);
+            setAlerts((prev) =>
+                prev.map((alert) =>
+                    alert.id === alertId
+                        ? { ...alert, status: 'reviewed' as AlertStatus, reviewedAt: new Date().toISOString() }
+                        : alert
+                )
+            );
+        } catch (err) {
+            console.error('Failed to acknowledge alert:', err);
+        }
     }, []);
 
-    const dismissAlert = useCallback((alertId: string, userId: string) => {
-        setAlerts((prev) =>
-            prev.map((alert) =>
-                alert.id === alertId
-                    ? {
-                        ...alert,
-                        status: 'dismissed' as const,
-                        acknowledgedBy: userId,
-                        acknowledgedAt: new Date().toISOString(),
-                    }
-                    : alert
-            )
-        );
-    }, []);
-
-    const setFeedback = useCallback((alertId: string, feedback: FeedbackType) => {
-        setAlerts((prev) =>
-            prev.map((alert) =>
-                alert.id === alertId ? { ...alert, feedback } : alert
-            )
-        );
+    const dismissAlert = useCallback(async (alertId: string) => {
+        try {
+            await api.dismissAlert(alertId);
+            setAlerts((prev) =>
+                prev.map((alert) =>
+                    alert.id === alertId
+                        ? { ...alert, status: 'dismissed' as const }
+                        : alert
+                )
+            );
+        } catch (err) {
+            console.error('Failed to dismiss alert:', err);
+        }
     }, []);
 
     const getAlertsByPatient = useCallback(
@@ -118,7 +116,18 @@ export function AlertProvider({ children }: { children: ReactNode }) {
         [alerts]
     );
 
-    const activeAlerts = alerts.filter((a) => a.status === 'active');
+    const setFeedback = useCallback((alertId: string, feedback: 'useful' | 'not_useful') => {
+        const mappedFeedback = feedback === 'useful' ? 'helpful' : 'not_helpful';
+        setAlerts((prev) =>
+            prev.map((alert) =>
+                alert.id === alertId
+                    ? { ...alert, feedback: mappedFeedback as 'helpful' | 'not_helpful' }
+                    : alert
+            )
+        );
+    }, []);
+
+    const activeAlerts = alerts.filter((a) => a.status === 'new' || a.status === 'reviewed' || a.status === 'monitoring');
 
     return (
         <AlertContext.Provider

@@ -3,6 +3,7 @@ import { Button, Input, Card, CardHeader, CardTitle, CardContent, Badge } from '
 import { usePatients } from '@/context';
 import { Activity, Heart, Wind, Thermometer, FileText, Plus } from 'lucide-react';
 import { VitalType, LabType } from '@/types';
+import { api } from '@/services/api';
 
 interface RecordDataFormProps {
     patientId: string;
@@ -18,6 +19,7 @@ const vitalFields: { type: VitalType; label: string; unit: string; icon: React.R
     { type: 'respiratoryRate', label: 'Respiratory Rate', unit: 'breaths/min', icon: <Wind className="w-4 h-4" />, min: 12, max: 20 },
     { type: 'temperature', label: 'Temperature', unit: '°C', icon: <Thermometer className="w-4 h-4" />, min: 36.1, max: 37.2 },
     { type: 'map', label: 'Mean Arterial Pressure', unit: 'mmHg', icon: <Activity className="w-4 h-4" />, min: 70, max: 105 },
+    { type: 'glucose', label: 'Blood Glucose', unit: 'mg/dL', icon: <Activity className="w-4 h-4" />, min: 70, max: 100 },
 ];
 
 const labFields: { type: LabType; label: string; unit: string; min: number; max: number }[] = [
@@ -28,7 +30,7 @@ const labFields: { type: LabType; label: string; unit: string; min: number; max:
 ];
 
 export function RecordDataForm({ patientId, onDataAdded }: RecordDataFormProps) {
-    const { addVitalReading, addLabResult, addClinicalEvent, recalculateRisk } = usePatients();
+    const { addVitalReading } = usePatients();
     const [activeTab, setActiveTab] = useState<TabType>('vitals');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -43,77 +45,79 @@ export function RecordDataForm({ patientId, onDataAdded }: RecordDataFormProps) 
     const [labValue, setLabValue] = useState('');
 
     // Notes form state
+    const [noteType] = useState('observation'); // Default to observation
     const [noteText, setNoteText] = useState('');
 
     const handleVitalSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        const field = vitalFields.find(f => f.type === vitalType)!;
+        try {
+            const field = vitalFields.find(f => f.type === vitalType)!;
 
-        addVitalReading({
-            patientId,
-            type: vitalType,
-            value: parseFloat(vitalValue),
-            value2: vitalType === 'bloodPressure' ? parseFloat(vitalValue2) : undefined,
-            unit: field.unit,
-            timestamp: new Date().toISOString(),
-            normalRange: { min: field.min, max: field.max },
-        });
+            await addVitalReading({
+                patientId,
+                type: vitalType,
+                value: parseFloat(vitalValue),
+                value2: vitalType === 'bloodPressure' ? parseFloat(vitalValue2) : undefined,
+                unit: field.unit,
+                timestamp: new Date().toISOString(),
+            });
 
-        recalculateRisk(patientId);
-
-        await new Promise(r => setTimeout(r, 300));
-        setIsSubmitting(false);
-        setSuccess(true);
-        setVitalValue('');
-        setVitalValue2('');
-        setTimeout(() => setSuccess(false), 2000);
-        onDataAdded?.();
+            setSuccess(true);
+            setVitalValue('');
+            setVitalValue2('');
+            setTimeout(() => setSuccess(false), 2000);
+            onDataAdded?.();
+        } catch (error) {
+            console.error('Failed to record vital:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleLabSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        const field = labFields.find(f => f.type === labType)!;
-
-        addLabResult({
-            patientId,
-            type: labType,
-            value: parseFloat(labValue),
-            unit: field.unit,
-            timestamp: new Date().toISOString(),
-            normalRange: { min: field.min, max: field.max },
-        });
-
-        recalculateRisk(patientId);
-
-        await new Promise(r => setTimeout(r, 300));
-        setIsSubmitting(false);
-        setSuccess(true);
-        setLabValue('');
-        setTimeout(() => setSuccess(false), 2000);
-        onDataAdded?.();
+        try {
+            const lab = labFields.find(l => l.type === labType);
+            await api.createLab({
+                patient_id: patientId,
+                lab_type: labType,
+                value: parseFloat(labValue),
+                unit: lab?.unit,
+            });
+            setSuccess(true);
+            setLabValue('');
+            setTimeout(() => setSuccess(false), 2000);
+            onDataAdded?.();
+        } catch (error) {
+            console.error('Failed to record lab:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleNoteSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        addClinicalEvent({
-            patientId,
-            type: 'consultation',
-            description: noteText,
-            timestamp: new Date().toISOString(),
-        });
-
-        await new Promise(r => setTimeout(r, 300));
-        setIsSubmitting(false);
-        setSuccess(true);
-        setNoteText('');
-        setTimeout(() => setSuccess(false), 2000);
-        onDataAdded?.();
+        try {
+            await api.createNote({
+                patient_id: patientId,
+                note_type: noteType,
+                content: noteText,
+            });
+            setSuccess(true);
+            setNoteText('');
+            setTimeout(() => setSuccess(false), 2000);
+            onDataAdded?.();
+        } catch (error) {
+            console.error('Failed to save note:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (

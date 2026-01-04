@@ -1,0 +1,85 @@
+{
+  "trained_at": "2026-01-03T23:36:07.226038",
+  "models": {
+    "diabetes": {
+      "name": "diabetes",
+      "features": [
+        "age",
+        "sex",
+        "sugar_percent_change",
+        "sugar_trend_up",
+        "sugar_velocity",
+        "sugar_volatility",
+        "sugar_consecutive_increase",
+        "sugar_max_spike",
+        "sugar_time_since_baseline",
+        "trend_duration_months",
+        "medication_delay"
+      ],
+      "samples": 70692,
+      "metrics": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "roc_auc": 1.0
+      },
+      "model_path": "C:\\Users\\berry\\Downloads\\python projects\\clinical_intelligence_platoform\\models\\diabetes_model.pkl"
+    },
+    "cardiac": {
+      "name": "cardiac",
+      "features": [
+        "age",
+        "sex",
+        "bp_percent_change",
+        "bp_trend_up",
+        "bp_velocity",
+        "bp_volatility",
+        "bp_consecutive_increase",
+        "trend_duration_months",
+        "medication_delay"
+      ],
+      "samples": 4625,
+      "metrics": {
+        "accuracy": 0.8248648648648649,
+        "precision": 0.7558139534883721,
+        "recall": 0.3155339805825243,
+        "f1": 0.4452054794520548,
+        "roc_auc": 0.7767867993572517
+      },
+      "model_path": "C:\\Users\\berry\\Downloads\\python projects\\clinical_intelligence_platoform\\models\\cardiac_model.pkl"
+    },
+    "general": {
+      "name": "general",
+      "features": [
+        "age",
+        "sex",
+        "sugar_percent_change",
+        "sugar_trend_up",
+        "trend_duration_months",
+        "bp_percent_change",
+        "bp_trend_up",
+        "medication_delay",
+        "sugar_velocity",
+        "sugar_volatility",
+        "sugar_consecutive_increase",
+        "sugar_max_spike",
+        "sugar_time_since_baseline",
+        "bp_velocity",
+        "bp_volatility",
+        "bp_consecutive_increase",
+        "medication_delay_months"
+      ],
+      "samples": 75317,
+      "metrics": {
+        "accuracy": 0.9891795007966012,
+        "precision": 0.9938888888888889,
+        "recall": 0.9836426116838488,
+        "f1": 0.9887392055267703,
+        "roc_auc": 0.9994421421698325
+      },
+      "model_path": "C:\\Users\\berry\\Downloads\\python projects\\clinical_intelligence_platoform\\models\\general_model.pkl"
+    }
+  },
+  "model_selector": "\ndef select_model(available_features: list) -> str:\n    \"\"\"\n    Select the best model based on which features the doctor has available.\n    \n    Args:\n        available_features: List of feature names the doctor has data for\n        \n    Returns:\n        Model name to use: 'diabetes', 'cardiac', or 'general'\n    \"\"\"\n    diabetes_features = {'sugar_percent_change', 'sugar_trend_up', 'sugar_velocity'}\n    cardiac_features = {'bp_percent_change', 'bp_trend_up', 'bp_velocity'}\n    \n    available = set(available_features)\n    \n    has_diabetes = len(diabetes_features & available) >= 2\n    has_cardiac = len(cardiac_features & available) >= 2\n    \n    if has_diabetes and not has_cardiac:\n        return 'diabetes'\n    elif has_cardiac and not has_diabetes:\n        return 'cardiac'\n    else:\n        return 'general'\n"
+}

@@ -1,32 +1,73 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout';
 import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { RiskBadge, RiskScoreGauge, RecordDataForm, PatientTimeline } from '@/components/patient';
-import { TimelineChart, RiskGauge } from '@/components/charts';
-import { useAlerts, useAuth, usePatients } from '@/context';
+import { TimelineChart } from '@/components/charts';
+import { useAlerts, usePatients } from '@/context';
 import { rajGlucoseData, rajBPData, anitaCreatinineData, getRiskScoreHistory } from '@/mocks/mockVitals';
 import { ArrowLeft, AlertTriangle, Check, ThumbsUp, ThumbsDown, Activity, Heart, Wind } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { cn } from '@/utils/cn';
-import { api, RiskResult } from '@/services/api';
+import { api } from '@/services/api';
 
 type TabType = 'overview' | 'timeline' | 'record';
+
+// Helper to format reading type names for display
+function formatReadingType(type: string | undefined): string {
+    if (!type) return 'Reading';
+    const map: Record<string, string> = {
+        heartRate: 'Heart Rate',
+        heart_rate: 'Heart Rate',
+        bloodPressure: 'Blood Pressure',
+        blood_pressure: 'Blood Pressure',
+        oxygenSat: 'Oxygen Saturation',
+        oxygen_sat: 'Oxygen Saturation',
+        respiratoryRate: 'Respiratory Rate',
+        respiratory_rate: 'Respiratory Rate',
+        temperature: 'Temperature',
+        map: 'Mean Arterial Pressure',
+        glucose: 'Blood Glucose',
+        blood_sugar: 'Blood Glucose',
+        lactate: 'Lactate',
+        creatinine: 'Creatinine',
+        cholesterolTotal: 'Total Cholesterol',
+    };
+    return map[type] || type.replace(/([A-Z])/g, ' $1').trim();
+}
 
 export function PatientDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { getAlertsByPatient, acknowledgeAlert } = useAlerts();
-    const { user } = useAuth();
-    const { getPatientById, getVitalsByPatientId } = usePatients();
+    const { getPatientById, getVitalsByPatientId, isLoading: patientsLoading } = usePatients();
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [refreshKey, setRefreshKey] = useState(0);
+    const [vitals, setVitals] = useState<any[]>([]);
+    const [labs, setLabs] = useState<any[]>([]);
 
     const patient = id ? getPatientById(id) : undefined;
     const patientAlerts = id ? getAlertsByPatient(id) : [];
-    const activeAlert = patientAlerts.find(a => a.status === 'active');
-    const vitals = id ? getVitalsByPatientId(id) : [];
+    const activeAlert = patientAlerts.find(a => a.status === 'new' || a.status === 'reviewed');
     const riskHistory = id ? getRiskScoreHistory(id) : [];
+
+    // Fetch vitals and labs on mount
+    useEffect(() => {
+        if (id) {
+            // Fetch vitals
+            getVitalsByPatientId(id)
+                .then(setVitals)
+                .catch((err) => {
+                    console.error('Failed to fetch vitals:', err);
+                });
+            // Fetch labs
+            api.getPatientLabs(id)
+                .then(setLabs)
+                .catch((err) => {
+                    console.error('Failed to fetch labs:', err);
+                });
+        }
+    }, [id, getVitalsByPatientId, refreshKey]);
 
     // Get specific chart data based on patient
     const getChartData = () => {
@@ -40,6 +81,44 @@ export function PatientDetailPage() {
         // Trigger refresh to get updated data
         setRefreshKey(prev => prev + 1);
     };
+
+    const [isComputingRisk, setIsComputingRisk] = useState(false);
+    const [lastRiskResult, setLastRiskResult] = useState<{
+        model_used?: string;
+        confidence?: number;
+        computed_at?: string;
+    } | null>(null);
+
+    const handleComputeRisk = async () => {
+        if (!id) return;
+        setIsComputingRisk(true);
+        try {
+            const result = await api.computeRisk(id);
+            console.log('Risk computed:', result);
+            setLastRiskResult({
+                model_used: result.model_used,
+                confidence: result.confidence,
+                computed_at: result.computed_at,
+            });
+            // Refresh patient data to show updated risk score
+            setRefreshKey(prev => prev + 1);
+        } catch (err) {
+            console.error('Failed to compute risk:', err);
+        } finally {
+            setIsComputingRisk(false);
+        }
+    };
+
+    // Show loading state while patients are being fetched
+    if (patientsLoading) {
+        return (
+            <MainLayout>
+                <div className="text-center py-12">
+                    <p className="text-[hsl(var(--muted-foreground))]">Loading patient data...</p>
+                </div>
+            </MainLayout>
+        );
+    }
 
     if (!patient) {
         return (
@@ -67,10 +146,10 @@ export function PatientDetailPage() {
                     <div>
                         <h1 className="text-3xl font-bold mb-1">{patient.name}</h1>
                         <p className="text-[hsl(var(--muted-foreground))]">
-                            MRN: {patient.mrn} • {patient.age}y, {patient.sex.charAt(0).toUpperCase()} • {patient.location}
+                            {patient.mrn && `MRN: ${patient.mrn} • `}{patient.age}y, {patient.sex?.charAt(0).toUpperCase() || 'U'} • {patient.location}
                         </p>
                     </div>
-                    <RiskBadge level={patient.currentRiskLevel} showChange previousLevel={patient.previousRiskLevel} />
+                    <RiskBadge level={patient.currentRiskLevel} showChange previousLevel={patient.previousRiskLevel || patient.currentRiskLevel} />
                 </div>
             </div>
 
@@ -87,7 +166,7 @@ export function PatientDetailPage() {
                             <div className="flex gap-2">
                                 <Button
                                     size="sm"
-                                    onClick={() => user && acknowledgeAlert(activeAlert.id, user.id)}
+                                    onClick={() => acknowledgeAlert(activeAlert.id)}
                                 >
                                     <Check className="w-4 h-4 mr-1" />
                                     Acknowledge
@@ -100,13 +179,9 @@ export function PatientDetailPage() {
 
                         <div className="space-y-2">
                             <p className="font-medium text-sm">Key Risk Drivers:</p>
-                            <ul className="list-disc list-inside space-y-1">
-                                {activeAlert.drivers.map((driver, idx) => (
-                                    <li key={idx} className="text-sm text-[hsl(var(--muted-foreground))]">
-                                        <span className="font-medium">{driver.factor}</span>: {driver.detail}
-                                    </li>
-                                ))}
-                            </ul>
+                            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                                {activeAlert.explanation}
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
@@ -133,27 +208,55 @@ export function PatientDetailPage() {
             {/* Overview Tab */}
             {activeTab === 'overview' && (
                 <>
-                    {/* Risk Score & Current Vitals */}
+                    {/* Risk Score & Current Vitals/Labs */}
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-                        <RiskScoreGauge score={patient.currentRiskScore} level={patient.currentRiskLevel} />
+                        <div className="flex flex-col gap-2">
+                            <RiskScoreGauge score={patient.currentRiskScore} level={patient.currentRiskLevel} />
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleComputeRisk}
+                                disabled={isComputingRisk}
+                                className="text-xs"
+                            >
+                                {isComputingRisk ? 'Computing...' : '🤖 Calculate Risk with AI'}
+                            </Button>
+                        </div>
 
-                        {vitals.slice(0, 3).map((vital) => (
-                            <Card key={vital.id}>
+                        {/* Map vitals to unified format */}
+                        {[
+                            ...vitals.map((v) => ({
+                                id: v.id,
+                                type: v.type || v.vital_type,
+                                value: v.value,
+                                value2: v.value2,
+                                unit: v.unit,
+                                category: 'vital' as const,
+                            })),
+                            ...labs.map((l) => ({
+                                id: l.id,
+                                type: l.lab_type,
+                                value: l.value,
+                                value2: null,
+                                unit: l.unit,
+                                category: 'lab' as const,
+                            })),
+                        ].slice(0, 3).map((reading) => (
+                            <Card key={reading.id}>
                                 <CardContent className="p-4">
                                     <div className="flex items-center gap-2 mb-2">
-                                        {vital.type === 'heartRate' && <Heart className="w-4 h-4 text-red-500" />}
-                                        {vital.type === 'bloodPressure' && <Activity className="w-4 h-4 text-blue-500" />}
-                                        {vital.type === 'oxygenSat' && <Wind className="w-4 h-4 text-cyan-500" />}
+                                        {(reading.type === 'heartRate' || reading.type === 'heart_rate') && <Heart className="w-4 h-4 text-red-500" />}
+                                        {(reading.type === 'bloodPressure' || reading.type === 'blood_pressure') && <Activity className="w-4 h-4 text-blue-500" />}
+                                        {(reading.type === 'oxygenSat' || reading.type === 'oxygen_sat') && <Wind className="w-4 h-4 text-cyan-500" />}
+                                        {(reading.type === 'glucose' || reading.type === 'blood_sugar') && <Activity className="w-4 h-4 text-orange-500" />}
+                                        {!['heartRate', 'heart_rate', 'bloodPressure', 'blood_pressure', 'oxygenSat', 'oxygen_sat', 'glucose', 'blood_sugar'].includes(reading.type || '') && <Activity className="w-4 h-4 text-gray-500" />}
                                         <span className="text-sm text-[hsl(var(--muted-foreground))] capitalize">
-                                            {vital.type.replace(/([A-Z])/g, ' $1').trim()}
+                                            {formatReadingType(reading.type)}
                                         </span>
                                     </div>
                                     <p className="text-2xl font-bold">
-                                        {vital.value}{vital.value2 ? `/${vital.value2}` : ''}
-                                        <span className="text-sm font-normal text-[hsl(var(--muted-foreground))] ml-1">{vital.unit}</span>
-                                    </p>
-                                    <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                                        Normal: {vital.normalRange.min}-{vital.normalRange.max}
+                                        {reading.value}{reading.value2 ? `/${reading.value2}` : ''}
+                                        <span className="text-sm font-normal text-[hsl(var(--muted-foreground))] ml-1">{reading.unit || ''}</span>
                                     </p>
                                 </CardContent>
                             </Card>
@@ -168,53 +271,17 @@ export function PatientDetailPage() {
                                 <CardTitle className="text-lg">Risk Score Trend</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={200}>
-                                    <LineChart data={riskHistory}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                                        <XAxis
-                                            dataKey="timestamp"
-                                            tick={{ fontSize: 10 }}
-                                            tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short' })}
-                                            stroke="hsl(var(--muted-foreground))"
-                                        />
-                                        <YAxis domain={[0, 100]} stroke="hsl(var(--muted-foreground))" />
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: 'hsl(var(--card))',
-                                                border: '1px solid hsl(var(--border))'
-                                            }}
-                                            labelFormatter={(val) => new Date(val).toLocaleDateString()}
-                                        />
-                                        <ReferenceLine y={70} stroke="hsl(var(--risk-high))" strokeDasharray="3 3" />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="value"
-                                            stroke="hsl(var(--primary))"
-                                            strokeWidth={2}
-                                            dot={{ fill: 'hsl(var(--primary))' }}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-
-                        {/* Glucose Chart (for Raj) */}
-                        {chartData.glucose && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-lg">Blood Glucose Trend</CardTitle>
-                                </CardHeader>
-                                <CardContent>
+                                {riskHistory.length > 0 ? (
                                     <ResponsiveContainer width="100%" height={200}>
-                                        <LineChart data={chartData.glucose}>
+                                        <LineChart data={riskHistory}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                                             <XAxis
                                                 dataKey="timestamp"
                                                 tick={{ fontSize: 10 }}
-                                                tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
+                                                tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short' })}
                                                 stroke="hsl(var(--muted-foreground))"
                                             />
-                                            <YAxis domain={[80, 160]} stroke="hsl(var(--muted-foreground))" />
+                                            <YAxis domain={[0, 100]} stroke="hsl(var(--muted-foreground))" />
                                             <Tooltip
                                                 contentStyle={{
                                                     backgroundColor: 'hsl(var(--card))',
@@ -222,29 +289,37 @@ export function PatientDetailPage() {
                                                 }}
                                                 labelFormatter={(val) => new Date(val).toLocaleDateString()}
                                             />
-                                            <ReferenceLine y={100} stroke="hsl(var(--risk-medium))" strokeDasharray="3 3" />
+                                            <ReferenceLine y={70} stroke="hsl(var(--risk-high))" strokeDasharray="3 3" />
                                             <Line
                                                 type="monotone"
                                                 dataKey="value"
-                                                stroke="hsl(var(--risk-high))"
+                                                stroke="hsl(var(--primary))"
                                                 strokeWidth={2}
-                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                dot={(props: any) => {
-                                                    const { cx, cy, payload } = props;
-                                                    return (
-                                                        <circle
-                                                            cx={cx}
-                                                            cy={cy}
-                                                            r={payload.isAbnormal ? 6 : 4}
-                                                            fill={payload.isAbnormal ? 'hsl(var(--risk-high))' : 'hsl(var(--risk-medium))'}
-                                                        />
-                                                    );
-                                                }}
+                                                dot={{ fill: 'hsl(var(--primary))' }}
                                             />
                                         </LineChart>
                                     </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
+                                ) : (
+                                    <div className="h-[200px] flex items-center justify-center text-[hsl(var(--muted-foreground))]">
+                                        <p>No risk history yet. Add vitals to start tracking.</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Glucose Chart (for Raj) - Using TimelineChart */}
+                        {chartData.glucose && (
+                            <TimelineChart
+                                title="Blood Glucose Trend"
+                                data={chartData.glucose.map(d => ({
+                                    date: d.timestamp,
+                                    value: d.value,
+                                }))}
+                                color="hsl(var(--risk-high))"
+                                unit="mg/dL"
+                                normalRange={{ min: 70, max: 100 }}
+                                showArea={true}
+                            />
                         )}
 
                         {/* Creatinine Chart (for Anita) */}
@@ -298,7 +373,7 @@ export function PatientDetailPage() {
                                             key={alert.id}
                                             className={cn(
                                                 'p-3 rounded-lg border flex justify-between items-center',
-                                                alert.status === 'active' && 'border-[hsl(var(--risk-high))] bg-[hsl(var(--risk-high))]/5'
+                                                (alert.status === 'new' || alert.status === 'reviewed') && 'border-[hsl(var(--risk-high))] bg-[hsl(var(--risk-high))]/5'
                                             )}
                                         >
                                             <div className="flex items-center gap-3">
@@ -317,11 +392,11 @@ export function PatientDetailPage() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <Badge variant={alert.status === 'active' ? alert.severity : 'outline'}>
+                                                <Badge variant={(alert.status === 'new' || alert.status === 'reviewed') ? alert.severity : 'outline'}>
                                                     {alert.status}
                                                 </Badge>
                                                 {alert.feedback && (
-                                                    alert.feedback === 'useful'
+                                                    alert.feedback === 'helpful'
                                                         ? <ThumbsUp className="w-4 h-4 text-[hsl(var(--risk-low))]" />
                                                         : <ThumbsDown className="w-4 h-4 text-[hsl(var(--risk-high))]" />
                                                 )}

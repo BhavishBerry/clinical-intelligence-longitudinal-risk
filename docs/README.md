@@ -170,27 +170,103 @@ This is a **large, serious project** requiring:
 
 ```
 clinical_intelligence_platform/
-├── README.md
-├── docs/
-│   └── problem_dry_run.md
-├── src/
-│   ├── data_ingestion/
-│   ├── trend_analysis/
-│   ├── risk_engine/
-│   ├── explainability/
-│   └── api/
-├── tests/
-├── config/
-└── requirements.txt
+├── backend/                    # FastAPI backend
+│   ├── main.py                 # Main application entry point
+│   ├── database.py             # SQLite/PostgreSQL database models
+│   └── routes.py               # REST API endpoints
+├── frontend/                   # React + TypeScript frontend
+│   ├── src/
+│   │   ├── components/         # UI components
+│   │   │   ├── charts/         # TimelineChart, RiskGauge
+│   │   │   ├── clinical/       # RiskDriverPanel, SafetyDisclaimer, etc.
+│   │   │   ├── patient/        # PatientCard, RiskBadge, etc.
+│   │   │   └── ui/             # Button, Card, Badge, etc.
+│   │   ├── context/            # AuthContext, PatientContext, AlertContext
+│   │   ├── pages/              # DashboardPage, PatientDetailPage, AlertsPage
+│   │   └── services/           # API service layer
+│   └── package.json
+├── scripts/                    # Data and training scripts
+│   ├── generate_synthetic_data.py
+│   ├── train_risk_model.py
+│   └── explanation_engine.py
+├── models/                     # Trained ML models (.pkl files)
+├── docs/                       # Documentation
+├── data/                       # Database files
+└── requirements-data.txt       # Python dependencies
 ```
-
-*Structure will evolve as development progresses.*
 
 ---
 
 ## 🚀 Getting Started
 
-> **Coming Soon** — Development is in progress.
+### Prerequisites
+- **Python 3.10+** with pip
+- **Node.js 18+** with npm
+- Git
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/your-username/clinical-intelligence-platform.git
+cd clinical-intelligence-platform
+```
+
+### 2. Backend Setup
+```bash
+# Create and activate virtual environment
+python -m venv venv
+.\venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
+
+# Install dependencies
+pip install -r requirements-data.txt
+
+# Start the backend server
+uvicorn backend.main:app --reload --port 8000
+```
+
+### 3. Frontend Setup
+```bash
+# In a new terminal
+cd frontend
+npm install
+npm run dev
+```
+
+### 4. Access the Application
+- **Frontend:** http://localhost:5173
+- **Backend API:** http://localhost:8000
+- **API Docs:** http://localhost:8000/docs
+
+### Demo Credentials
+| Role | Email | Password |
+|------|-------|----------|
+| Doctor | doctor1@hospital | password |
+| Nurse | nurse1@hospital | password |
+| Admin | admin@hospital | adminpass |
+
+---
+
+## 🆕 New Features (Phase 6 UI Enhancements)
+
+### Clinical Risk Reasoning
+- **Risk Driver Panel** - Shows why risk changed with contributing factors
+- **Confidence Indicator** - Displays model confidence level
+- **Risk Velocity Badge** - Shows if patient is stable, worsening, or rapidly deteriorating
+
+### Event-Context Integration
+- **Event-Anchored Graphs** - Vertical markers on timeline for clinical events
+- **Patient Baseline Bands** - Personal norm shading on charts
+- **Data Provenance** - Shows timestamp, source, and who entered each data point
+
+### Timeline & Dashboard
+- **Time Window Selector** - Filter charts by 24h, 7d, 30d, 6mo, or all time
+- **Event Grouping** - Collapsible groups of related timeline events
+- **"Getting Worse" Sort Mode** - Prioritize patients with rapidly increasing risk
+
+### Safety Guardrails
+- **Decision Support Disclaimer** - Clinical decision support footer on all pages
+- **Structured Note Tags** - Safe clinical context signals without diagnosis
+- **"Why this alert?" Tooltip** - Explains alert trigger conditions
 
 ---
 

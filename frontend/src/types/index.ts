@@ -17,18 +17,19 @@ export interface Patient {
     id: string;
     name: string;
     age: number;
-    sex: 'male' | 'female' | 'other';
-    mrn: string;
+    sex: string;  // Flexible to accept various formats from API
+    mrn?: string;
     location: string;
     currentRiskScore: number;
     currentRiskLevel: RiskLevel;
-    previousRiskLevel: RiskLevel;
-    admissionDate: string;
+    previousRiskScore?: number;
+    previousRiskLevel?: RiskLevel;
+    admissionDate?: string;
 }
 
 // ============ VITALS ============
 export type VitalType = 'heartRate' | 'bloodPressure' | 'oxygenSat' |
-    'respiratoryRate' | 'temperature' | 'map';
+    'respiratoryRate' | 'temperature' | 'map' | 'glucose';
 
 export interface VitalReading {
     id: string;
