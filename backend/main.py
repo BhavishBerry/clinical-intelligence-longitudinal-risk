@@ -29,6 +29,17 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 from explanation_engine import ExplanationEngine, load_feature_importance
 
+# Try to import Model Service for intelligent model selection
+try:
+    from model_service import ModelService, get_service
+    MODEL_SERVICE = get_service()
+    USE_SERVICE = MODEL_SERVICE.health_check()['healthy']
+    print(f"✓ Model Service loaded - Available models: {MODEL_SERVICE.health_check()['available_models']}")
+except Exception as e:
+    MODEL_SERVICE = None
+    USE_SERVICE = False
+    print(f"⚠ Model Service not available, using basic model: {e}")
+
 
 # =============================================================================
 # CONFIGURATION
@@ -64,6 +75,11 @@ class TrendFeatures(BaseModel):
     bp_trend_up: Optional[int] = 0
     trend_duration_months: Optional[float] = 0
     medication_delay: Optional[int] = 0
+    # Enhanced features
+    sugar_velocity: Optional[float] = 0
+    sugar_volatility: Optional[float] = 0
+    bp_velocity: Optional[float] = 0
+    bp_volatility: Optional[float] = 0
 
 
 class RiskResult(BaseModel):
@@ -93,7 +109,7 @@ class EventInput(BaseModel):
 app = FastAPI(
     title="Clinical Intelligence Platform API",
     description="Longitudinal patient risk monitoring system",
-    version="1.0.0"
+    version="3.0.0"
 )
 
 # CORS for frontend
@@ -104,6 +120,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include database routes
+try:
+    from .routes import router as db_router
+    from .database import init_db
+    app.include_router(db_router, tags=["Database"])
+    init_db()  # Ensure tables exist
+    print("✓ Database routes loaded")
+except Exception as e:
+    print(f"⚠ Database routes not available: {e}")
 
 
 # =============================================================================
@@ -131,8 +157,10 @@ def list_patients() -> List[str]:
 
 
 def load_model():
-    """Load the trained risk scoring model."""
-    model_path = MODELS_DIR / "logistic_regression_model.pkl"
+    """Load the trained risk scoring model (fallback)."""
+    model_path = MODELS_DIR / "real_data_model.pkl"
+    if not model_path.exists():
+        model_path = MODELS_DIR / "logistic_regression_model.pkl"
     scaler_path = MODELS_DIR / "logistic_regression_scaler.pkl"
     
     if not model_path.exists():
@@ -216,18 +244,30 @@ def extract_trends(patient_data: Dict) -> Dict[str, Any]:
 
 
 # =============================================================================
-# RISK SCORING (Model 2 - ML)
+# RISK SCORING (Model 2 - ML via Service)
 # =============================================================================
 
 def score_risk(features: Dict[str, Any]) -> Dict[str, Any]:
     """
     Score patient risk using trained model.
-    This is Model 2 - Risk Scoring Engine (ML).
+    Uses Model Service for intelligent routing and prediction.
     """
+    # Use Model Service if available
+    if USE_SERVICE and MODEL_SERVICE:
+        result = MODEL_SERVICE.predict(features)
+        return {
+            "risk_score": result.risk_score,
+            "risk_level": result.risk_level,
+            "confidence": result.confidence,
+            "model_used": result.model_used,
+            "routing_reason": result.routing_reason,
+        }
+    
+    # Fallback to direct model (only if router not available)
     if MODEL is None:
         return {"risk_score": 0.5, "risk_level": "UNKNOWN", "confidence": 0}
     
-    # Prepare features in correct order
+    # Use basic 8 features for fallback
     feature_order = ["age", "sex", "sugar_percent_change", "sugar_trend_up",
                      "trend_duration_months", "bp_percent_change", "bp_trend_up",
                      "medication_delay"]
@@ -238,10 +278,8 @@ def score_risk(features: Dict[str, Any]) -> Dict[str, Any]:
     if SCALER:
         X = SCALER.transform(X)
     
-    # Get prediction
     prob = MODEL.predict_proba(X)[0, 1]
     
-    # Determine risk level
     if prob >= 0.7:
         level = "HIGH"
     elif prob >= 0.4:
