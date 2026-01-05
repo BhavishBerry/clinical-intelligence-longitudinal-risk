@@ -246,27 +246,40 @@ npm run dev
 
 ---
 
-## 🆕 New Features (Phase 6 UI Enhancements)
+## ⚡ Platform Features
 
-### Clinical Risk Reasoning
-- **Risk Driver Panel** - Shows why risk changed with contributing factors
-- **Confidence Indicator** - Displays model confidence level
-- **Risk Velocity Badge** - Shows if patient is stable, worsening, or rapidly deteriorating
+### 🎯 Core Capabilities
+| Feature | Description |
+|---------|-------------|
+| **ML Risk Scoring** | Trained gradient boosting model predicts patient deterioration risk (0-100%) |
+| **Risk Explanations** | Every score includes contributing factors and human-readable explanations |
+| **Longitudinal Charts** | Real-time charts for vitals, labs, and risk history from database |
+| **Automated Alerts** | High-risk patients automatically trigger alerts with deduplication |
+| **Role-Based Access** | JWT authentication with doctor/nurse/admin roles |
 
-### Event-Context Integration
-- **Event-Anchored Graphs** - Vertical markers on timeline for clinical events
-- **Patient Baseline Bands** - Personal norm shading on charts
-- **Data Provenance** - Shows timestamp, source, and who entered each data point
+### 📊 Patient Monitoring
+- **Risk Score Gauge** - Visual 0-100% risk indicator with color coding
+- **Risk Velocity Indicator** - Shows if patient is stable, worsening, or rapidly deteriorating
+- **Risk Drivers Panel** - Lists contributing factors (glucose trends, BP changes, age, etc.)
+- **Timeline View** - Grouped by day with collapsible sections and deduplication
 
-### Timeline & Dashboard
-- **Time Window Selector** - Filter charts by 24h, 7d, 30d, 6mo, or all time
-- **Event Grouping** - Collapsible groups of related timeline events
-- **"Getting Worse" Sort Mode** - Prioritize patients with rapidly increasing risk
+### 📈 Data Visualization
+- **Glucose Trend Chart** - Real blood sugar readings over time
+- **Blood Pressure Chart** - Systolic/diastolic with threshold markers (140 mmHg high)
+- **Creatinine Chart** - Lab results for kidney function monitoring
+- **Risk History** - ML-computed risk scores over time
 
-### Safety Guardrails
-- **Decision Support Disclaimer** - Clinical decision support footer on all pages
-- **Structured Note Tags** - Safe clinical context signals without diagnosis
-- **"Why this alert?" Tooltip** - Explains alert trigger conditions
+### 🔔 Alert System
+- **Auto-Generated Alerts** - Created when risk reaches HIGH level
+- **Bot Badge** - Visual indicator for ML-generated vs manual alerts
+- **24-Hour Deduplication** - Prevents alert fatigue
+- **Acknowledge/Dismiss** - Clinical workflow for alert management
+
+### 🔐 Security
+- **JWT Authentication** - Secure token-based login
+- **Role-Based Access Control** - Admin, Doctor, Nurse permission levels
+- **Protected Routes** - Sensitive endpoints require authentication
+- **Data Validation** - Vital signs validated against medical ranges
 
 ---
 

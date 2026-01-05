@@ -141,6 +141,11 @@ class Alert(Base):
     acknowledged_by = Column(String, ForeignKey("users.id"))
     acknowledged_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # NEW: For auto-generated alerts with risk snapshots
+    risk_snapshot = Column(Text)  # JSON: stores features + explanation at alert time
+    auto_generated = Column(Boolean, default=False)  # manual vs auto
     
     # Relationships
     patient = relationship("Patient", back_populates="alerts")

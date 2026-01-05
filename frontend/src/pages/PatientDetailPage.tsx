@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout';
 import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
-import { RiskBadge, RiskScoreGauge, RecordDataForm, PatientTimeline } from '@/components/patient';
+import { RiskBadge, RiskScoreGauge, RecordDataForm, PatientTimeline, RiskVelocityIndicator } from '@/components/patient';
+import type { VelocityCategory } from '@/components/patient';
+import { RiskDriversPanel } from '@/components/patient/RiskDriversPanel';
 import { TimelineChart } from '@/components/charts';
 import { useAlerts, usePatients } from '@/context';
-import { rajGlucoseData, rajBPData, anitaCreatinineData, getRiskScoreHistory } from '@/mocks/mockVitals';
 import { ArrowLeft, AlertTriangle, Check, ThumbsUp, ThumbsDown, Activity, Heart, Wind } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { cn } from '@/utils/cn';
@@ -45,13 +46,13 @@ export function PatientDetailPage() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [vitals, setVitals] = useState<any[]>([]);
     const [labs, setLabs] = useState<any[]>([]);
+    const [riskHistory, setRiskHistory] = useState<{ timestamp: string; value: number }[]>([]);
 
     const patient = id ? getPatientById(id) : undefined;
     const patientAlerts = id ? getAlertsByPatient(id) : [];
     const activeAlert = patientAlerts.find(a => a.status === 'new' || a.status === 'reviewed');
-    const riskHistory = id ? getRiskScoreHistory(id) : [];
 
-    // Fetch vitals and labs on mount
+    // Fetch vitals, labs, and risk history on mount
     useEffect(() => {
         if (id) {
             // Fetch vitals
@@ -66,16 +67,53 @@ export function PatientDetailPage() {
                 .catch((err) => {
                     console.error('Failed to fetch labs:', err);
                 });
+            // Fetch risk history from database
+            api.getRiskHistory(id)
+                .then((data) => {
+                    // Transform backend format to chart format
+                    // Backend: { risk_score (0-1), computed_at } -> Chart: { timestamp, value (0-100) }
+                    const chartData = data
+                        .map((item) => ({
+                            timestamp: item.computed_at,
+                            value: Math.round(item.risk_score * 100),
+                        }))
+                        .reverse(); // Oldest first for chart
+                    setRiskHistory(chartData);
+                })
+                .catch((err) => {
+                    console.error('Failed to fetch risk history:', err);
+                });
         }
     }, [id, getVitalsByPatientId, refreshKey]);
 
-    // Get specific chart data based on patient
-    const getChartData = () => {
-        if (id === 'patient-1') return { glucose: rajGlucoseData, bp: rajBPData };
-        if (id === 'patient-2') return { creatinine: anitaCreatinineData };
-        return {};
-    };
-    const chartData = getChartData();
+    // Generate chart data from real vitals and labs (TASK-2.4: replaces static mock arrays)
+    const glucoseChartData = [
+        ...vitals.filter(v => v.vital_type === 'glucose' || v.vital_type === 'blood_sugar').map(v => ({
+            timestamp: v.recorded_at,
+            value: v.value,
+        })),
+        ...labs.filter(l => l.lab_type === 'glucose' || l.lab_type === 'blood_sugar').map(l => ({
+            timestamp: l.recorded_at,
+            value: l.value,
+        })),
+    ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    const bpChartData = vitals
+        .filter(v => v.vital_type === 'bloodPressure' || v.vital_type === 'blood_pressure')
+        .map(v => ({
+            timestamp: v.recorded_at,
+            value: v.value,
+            value2: v.value2,
+        }))
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    const creatinineChartData = labs
+        .filter(l => l.lab_type === 'creatinine')
+        .map(l => ({
+            timestamp: l.recorded_at,
+            value: l.value,
+        }))
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     const handleDataAdded = () => {
         // Trigger refresh to get updated data
@@ -87,6 +125,17 @@ export function PatientDetailPage() {
         model_used?: string;
         confidence?: number;
         computed_at?: string;
+        explanation?: {
+            summary: string[];
+            contributing_factors: Array<{
+                feature: string;
+                display_name: string;
+                value: number;
+                explanation: string;
+            }>;
+        };
+        velocity?: VelocityCategory;
+        velocity_daily_change?: number;
     } | null>(null);
 
     const handleComputeRisk = async () => {
@@ -99,6 +148,9 @@ export function PatientDetailPage() {
                 model_used: result.model_used,
                 confidence: result.confidence,
                 computed_at: result.computed_at,
+                explanation: result.explanation,
+                velocity: result.velocity as VelocityCategory,
+                velocity_daily_change: result.velocity_daily_change,
             });
             // Refresh patient data to show updated risk score
             setRefreshKey(prev => prev + 1);
@@ -219,8 +271,22 @@ export function PatientDetailPage() {
                                 disabled={isComputingRisk}
                                 className="text-xs"
                             >
-                                {isComputingRisk ? 'Computing...' : '🤖 Calculate Risk with AI'}
+                                {isComputingRisk ? 'Computing...' : '🔄 Recompute Risk Score'}
                             </Button>
+                            {lastRiskResult && (
+                                <div className="text-xs text-[hsl(var(--muted-foreground))] mt-1 text-center">
+                                    <p>Model: <span className="font-medium">{lastRiskResult.model_used || 'unknown'}</span></p>
+                                    <p>Confidence: {((lastRiskResult.confidence || 0) * 100).toFixed(0)}%</p>
+                                </div>
+                            )}
+                            {/* TASK-4.4: Risk Velocity Indicator */}
+                            {lastRiskResult?.velocity && (
+                                <RiskVelocityIndicator
+                                    velocity={lastRiskResult.velocity}
+                                    dailyChange={lastRiskResult.velocity_daily_change}
+                                    className="mt-2"
+                                />
+                            )}
                         </div>
 
                         {/* Map vitals to unified format */}
@@ -307,11 +373,11 @@ export function PatientDetailPage() {
                             </CardContent>
                         </Card>
 
-                        {/* Glucose Chart (for Raj) - Using TimelineChart */}
-                        {chartData.glucose && (
+                        {/* Glucose Chart - Dynamic from vitals/labs */}
+                        {glucoseChartData.length > 0 && (
                             <TimelineChart
                                 title="Blood Glucose Trend"
-                                data={chartData.glucose.map(d => ({
+                                data={glucoseChartData.map(d => ({
                                     date: d.timestamp,
                                     value: d.value,
                                 }))}
@@ -322,15 +388,15 @@ export function PatientDetailPage() {
                             />
                         )}
 
-                        {/* Creatinine Chart (for Anita) */}
-                        {chartData.creatinine && (
+                        {/* Creatinine Chart - Dynamic from labs */}
+                        {creatinineChartData.length > 0 && (
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-lg">Creatinine Trend</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <ResponsiveContainer width="100%" height={200}>
-                                        <LineChart data={chartData.creatinine}>
+                                        <LineChart data={creatinineChartData}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                                             <XAxis
                                                 dataKey="timestamp"
@@ -358,6 +424,68 @@ export function PatientDetailPage() {
                                 </CardContent>
                             </Card>
                         )}
+
+                        {/* Blood Pressure Chart - Dynamic from vitals */}
+                        {bpChartData.length > 0 && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Blood Pressure Trend</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                        <LineChart data={bpChartData}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                            <XAxis
+                                                dataKey="timestamp"
+                                                tick={{ fontSize: 10 }}
+                                                tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short' })}
+                                                stroke="hsl(var(--muted-foreground))"
+                                            />
+                                            <YAxis domain={[60, 200]} stroke="hsl(var(--muted-foreground))" />
+                                            <Tooltip
+                                                contentStyle={{
+                                                    backgroundColor: 'hsl(var(--card))',
+                                                    border: '1px solid hsl(var(--border))'
+                                                }}
+                                                formatter={(value, name) => [
+                                                    value ?? 0,
+                                                    name === 'value' ? 'Systolic' : 'Diastolic'
+                                                ]}
+                                            />
+                                            {/* Event-anchored marker: High BP threshold */}
+                                            <ReferenceLine y={140} stroke="hsl(var(--risk-high))" strokeDasharray="3 3" label={{ value: 'High', fill: 'hsl(var(--risk-high))', fontSize: 10 }} />
+                                            <ReferenceLine y={90} stroke="hsl(var(--risk-medium))" strokeDasharray="3 3" label={{ value: 'Normal', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="value"
+                                                stroke="hsl(var(--risk-high))"
+                                                strokeWidth={2}
+                                                name="Systolic"
+                                                dot={{ fill: 'hsl(var(--risk-high))' }}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="value2"
+                                                stroke="hsl(var(--primary))"
+                                                strokeWidth={2}
+                                                name="Diastolic"
+                                                dot={{ fill: 'hsl(var(--primary))' }}
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+
+                    {/* Risk Drivers Panel - Shows explanation of why patient is at risk */}
+                    <div className="mb-6">
+                        <RiskDriversPanel
+                            explanation={lastRiskResult?.explanation || null}
+                            modelUsed={lastRiskResult?.model_used}
+                            confidence={lastRiskResult?.confidence}
+                            isLoading={isComputingRisk}
+                        />
                     </div>
 
                     {/* Alert History */}

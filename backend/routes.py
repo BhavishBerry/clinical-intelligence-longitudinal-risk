@@ -5,14 +5,65 @@ CRUD operations for users, patients, vitals, and alerts.
 """
 
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from hashlib import sha256
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from .database import get_db, User, Patient, Vital, Alert, RiskScore, Lab, ClinicalNote
+from .auth import verify_token, get_optional_user, require_role, require_admin, require_doctor, require_nurse, TokenData, create_access_token
+
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+def calculate_risk_velocity(db: Session, patient_id: str) -> tuple:
+    """
+    TASK-4.1: Calculate risk velocity (rate of change) from risk history.
+    Returns (velocity_category, daily_change_rate)
+    
+    Categories:
+    - rapid_deterioration: daily change > 0.05 (5%)
+    - slowly_worsening: daily change > 0.01 (1%)
+    - stable: daily change between -0.01 and 0.01
+    - improving: daily change < -0.01
+    - unknown: insufficient data
+    """
+    # Get last 5 risk scores ordered by date
+    recent_scores = db.query(RiskScore).filter(
+        RiskScore.patient_id == patient_id
+    ).order_by(RiskScore.computed_at.asc()).limit(10).all()
+    
+    if len(recent_scores) < 2:
+        return ("unknown", 0.0)
+    
+    # Use last 5 readings
+    recent = recent_scores[-5:] if len(recent_scores) >= 5 else recent_scores
+    
+    first_score = recent[0].risk_score
+    last_score = recent[-1].risk_score
+    
+    # Calculate time difference in days
+    time_diff = (recent[-1].computed_at - recent[0].computed_at).total_seconds() / 86400  # days
+    
+    if time_diff < 0.001:  # Less than ~1.5 minutes
+        time_diff = 1  # Assume 1 day to avoid division by zero
+    
+    daily_change = (last_score - first_score) / time_diff
+    
+    # Categorize velocity
+    if daily_change > 0.05:
+        return ("rapid_deterioration", round(daily_change, 4))
+    elif daily_change > 0.01:
+        return ("slowly_worsening", round(daily_change, 4))
+    elif daily_change < -0.01:
+        return ("improving", round(daily_change, 4))
+    else:
+        return ("stable", round(daily_change, 4))
 
 
 # =============================================================================
@@ -84,6 +135,8 @@ class AlertResponse(BaseModel):
     explanation: Optional[str]
     status: str
     created_at: datetime
+    auto_generated: Optional[bool] = False
+    updated_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
@@ -137,7 +190,7 @@ router = APIRouter()
 
 @router.post("/auth/login", response_model=LoginResponse)
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    """Authenticate user and return token."""
+    """Authenticate user and return JWT token."""
     password_hash = sha256(request.password.encode()).hexdigest()
     
     user = db.query(User).filter(
@@ -151,8 +204,14 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
     
-    # Simple token (in production, use JWT)
-    token = sha256(f"{user.id}:{datetime.utcnow().isoformat()}".encode()).hexdigest()
+    # TASK-6.2: Create proper JWT token with user info
+    token = create_access_token({
+        "user_id": user.id,
+        "sub": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+    })
     
     return {
         "token": token,
@@ -228,12 +287,35 @@ def get_patient_vitals(patient_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/db/vitals", response_model=VitalResponse)
-def create_vital(vital: VitalCreate, db: Session = Depends(get_db)):
-    """Record a new vital sign and auto-compute risk score."""
+def create_vital(vital: VitalCreate, db: Session = Depends(get_db), current_user: TokenData = Depends(require_nurse)):
+    """Record a new vital sign and auto-compute risk score. Requires nurse role or higher."""
     # Verify patient exists
     patient = db.query(Patient).filter(Patient.id == vital.patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
+    
+    # TASK-5.4: Validate vital values to prevent obviously incorrect data
+    VITAL_VALIDATION = {
+        "heart_rate": (30, 300, "bpm"),
+        "heartRate": (30, 300, "bpm"),
+        "blood_pressure": (50, 250, "mmHg systolic"),
+        "bloodPressure": (50, 250, "mmHg systolic"),
+        "oxygen_sat": (50, 100, "%"),
+        "oxygenSat": (50, 100, "%"),
+        "temperature": (30, 45, "°C"),
+        "glucose": (20, 600, "mg/dL"),
+        "blood_sugar": (20, 600, "mg/dL"),
+        "respiratory_rate": (5, 60, "breaths/min"),
+        "respiratoryRate": (5, 60, "breaths/min"),
+    }
+    
+    if vital.vital_type in VITAL_VALIDATION:
+        min_val, max_val, unit_desc = VITAL_VALIDATION[vital.vital_type]
+        if not (min_val <= vital.value <= max_val):
+            raise HTTPException(
+                status_code=422,
+                detail=f"{vital.vital_type} value {vital.value} outside valid range ({min_val}-{max_val} {unit_desc})"
+            )
     
     new_vital = Vital(
         patient_id=vital.patient_id,
@@ -516,40 +598,96 @@ def compute_risk_for_db_patient(patient_id: str, db: Session) -> dict:
         else:
             level = "LOW"
         
+        # Generate explanation using ExplanationEngine
+        explanation = None
+        try:
+            risk_result = {"risk_score": adjusted_score, "risk_level": level}
+            explanation_raw = EXPLANATION_ENGINE.explain(features, risk_result)
+            explanation = {
+                "summary": explanation_raw.get("summary", []),
+                "contributing_factors": [
+                    {
+                        "feature": f.get("feature", "unknown"),
+                        "display_name": f.get("display_name", "Unknown Factor"),
+                        "value": f.get("value", 0),
+                        "explanation": f.get("explanation", "")
+                    }
+                    for f in explanation_raw.get("contributing_factors", [])
+                ]
+            }
+        except Exception as expl_error:
+            explanation = {
+                "summary": ["Risk factors detected based on vital trends"],
+                "contributing_factors": [],
+                "error": str(expl_error)
+            }
+        
         return {
             "risk_score": round(adjusted_score, 2),
             "risk_level": level,
             "confidence": result.get("confidence", 0.8),
             "model_used": result.get("model_used", "general"),
             "features_used": features,
+            "explanation": explanation,
         }
     except Exception as e:
         # Fallback: Simple rule-based scoring with calibrated weights
         score = 0.15  # Base risk
         
         # Glucose/Sugar factors (labs)
+        contributing_factors = []
         if latest_glucose and latest_glucose > 126:
             score += 0.12  # Pre-diabetic
+            contributing_factors.append({
+                "feature": "glucose",
+                "display_name": "Blood Glucose",
+                "value": latest_glucose,
+                "explanation": f"Glucose level {latest_glucose} mg/dL exceeds normal range (>126)"
+            })
         if latest_glucose and latest_glucose > 180:
             score += 0.15  # Diabetic range
         
         # Blood pressure factors
         if latest_bp_systolic and latest_bp_systolic > 130:
             score += 0.08  # Elevated
+            contributing_factors.append({
+                "feature": "blood_pressure",
+                "display_name": "Blood Pressure",
+                "value": latest_bp_systolic,
+                "explanation": f"Systolic BP {latest_bp_systolic} mmHg is elevated (>130)"
+            })
         if latest_bp_systolic and latest_bp_systolic > 140:
             score += 0.10  # High
         
         # Heart rate factor
         if latest_heart_rate and latest_heart_rate > 100:
             score += 0.08  # Tachycardia
+            contributing_factors.append({
+                "feature": "heart_rate",
+                "display_name": "Heart Rate",
+                "value": latest_heart_rate,
+                "explanation": f"Heart rate {latest_heart_rate} bpm indicates tachycardia (>100)"
+            })
         
         # Temperature factor
         if latest_temp and latest_temp >= 38:
             score += 0.10  # Fever
+            contributing_factors.append({
+                "feature": "temperature",
+                "display_name": "Body Temperature",
+                "value": latest_temp,
+                "explanation": f"Temperature {latest_temp}°C indicates fever (≥38)"
+            })
         
         # Age factor for elderly
         if patient.age and patient.age > 65:
             score += 0.08
+            contributing_factors.append({
+                "feature": "age",
+                "display_name": "Age",
+                "value": patient.age,
+                "explanation": f"Advanced age ({patient.age} years) increases baseline risk"
+            })
         
         # Cap at reasonable maximum (85% - very high risk but not 100%)
         score = min(score, 0.85)
@@ -561,6 +699,14 @@ def compute_risk_for_db_patient(patient_id: str, db: Session) -> dict:
         else:
             level = "LOW"
         
+        # Build explanation summary
+        summary = []
+        if contributing_factors:
+            for factor in contributing_factors[:3]:
+                summary.append(factor["explanation"])
+        else:
+            summary.append("Baseline risk calculated from available patient data")
+        
         return {
             "risk_score": round(score, 2),
             "risk_level": level,
@@ -568,14 +714,20 @@ def compute_risk_for_db_patient(patient_id: str, db: Session) -> dict:
             "model_used": "rule_based_fallback",
             "features_used": features,
             "fallback_reason": str(e),
+            "explanation": {
+                "summary": summary,
+                "contributing_factors": contributing_factors
+            },
         }
 
 
 @router.post("/db/patients/{patient_id}/compute-risk")
-def compute_patient_risk(patient_id: str, db: Session = Depends(get_db)):
+def compute_patient_risk(patient_id: str, db: Session = Depends(get_db), current_user: TokenData = Depends(require_doctor)):
     """
     Compute and update risk score for a patient using ML model.
     This endpoint fetches vitals from DB, runs ML scoring, and updates patient record.
+    Auto-generates alerts when risk_level is HIGH with deduplication.
+    Requires doctor role or higher.
     """
     # Compute risk
     result = compute_risk_for_db_patient(patient_id, db)
@@ -596,7 +748,52 @@ def compute_patient_risk(patient_id: str, db: Session = Depends(get_db)):
         confidence=result.get("confidence", 0),
     )
     db.add(risk_record)
+    
+    # TASK-3.2 & 3.3: Auto-generate alert when risk is HIGH with deduplication
+    alert_created = False
+    if result["risk_level"] == "HIGH":
+        # Build risk snapshot for alert
+        risk_snapshot = json.dumps({
+            "risk_score": result["risk_score"],
+            "features": result.get("features_used"),
+            "explanation": result.get("explanation"),
+            "model_used": result.get("model_used"),
+        })
+        
+        # TASK-3.3: Check for existing active alert (deduplication)
+        existing_alert = db.query(Alert).filter(
+            Alert.patient_id == patient_id,
+            Alert.status == "active",
+            Alert.auto_generated == True,
+            Alert.created_at > datetime.utcnow() - timedelta(hours=24)
+        ).first()
+        
+        if existing_alert:
+            # Update existing alert instead of creating duplicate
+            existing_alert.risk_snapshot = risk_snapshot
+            existing_alert.updated_at = datetime.utcnow()
+            explanation_summary = result.get("explanation", {}).get("summary", [])
+            if explanation_summary:
+                existing_alert.explanation = explanation_summary[0]
+        else:
+            # Create new auto-generated alert
+            explanation_summary = result.get("explanation", {}).get("summary", [])
+            new_alert = Alert(
+                patient_id=patient_id,
+                severity="high",
+                title=f"Risk Deterioration - {int(result['risk_score'] * 100)}% Risk",
+                explanation=explanation_summary[0] if explanation_summary else f"Risk increased to {int(result['risk_score'] * 100)}%",
+                status="active",
+                risk_snapshot=risk_snapshot,
+                auto_generated=True,
+            )
+            db.add(new_alert)
+            alert_created = True
+    
     db.commit()
+    
+    # TASK-4.1 & 4.2: Calculate risk velocity from history
+    velocity, daily_change = calculate_risk_velocity(db, patient_id)
     
     return {
         "patient_id": patient_id,
@@ -605,4 +802,8 @@ def compute_patient_risk(patient_id: str, db: Session = Depends(get_db)):
         "confidence": result["confidence"],
         "model_used": result.get("model_used"),
         "computed_at": datetime.utcnow().isoformat(),
+        "explanation": result.get("explanation"),
+        "alert_created": alert_created,
+        "velocity": velocity,  # NEW: stable, slowly_worsening, rapid_deterioration, improving, unknown
+        "velocity_daily_change": daily_change,  # NEW: rate of change per day
     }

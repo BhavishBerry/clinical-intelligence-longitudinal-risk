@@ -5,6 +5,45 @@
 
 const API_BASE_URL = 'http://localhost:8000';
 
+// =============================================================================
+// TASK-6.4: Token Management
+// =============================================================================
+
+/**
+ * Get the stored auth token from sessionStorage (matches AuthContext)
+ */
+function getToken(): string | null {
+    return sessionStorage.getItem('authToken');
+}
+
+/**
+ * Store the auth token in sessionStorage (matches AuthContext)
+ */
+export function setToken(token: string): void {
+    sessionStorage.setItem('authToken', token);
+}
+
+/**
+ * Clear the auth token from sessionStorage (matches AuthContext)
+ */
+export function clearToken(): void {
+    sessionStorage.removeItem('authToken');
+}
+
+/**
+ * Get headers with Authorization if token exists
+ */
+function getAuthHeaders(): Record<string, string> {
+    const token = getToken();
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+}
+
 // Types
 export interface Patient {
     id: string;
@@ -35,6 +74,8 @@ export interface Alert {
     explanation: string | null;
     status: 'active' | 'acknowledged' | 'dismissed';
     created_at: string;
+    auto_generated?: boolean;
+    updated_at?: string;
 }
 
 export interface User {
@@ -130,7 +171,7 @@ export const api = {
     async createPatient(data: { name: string; age?: number; sex?: string; location?: string }): Promise<Patient> {
         const response = await fetch(`${API_BASE_URL}/db/patients`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(data),
         });
         if (!response.ok) throw new Error('Failed to create patient');
@@ -140,6 +181,7 @@ export const api = {
     async deletePatient(patientId: string): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/db/patients/${patientId}`, {
             method: 'DELETE',
+            headers: getAuthHeaders(),
         });
         if (!response.ok) throw new Error('Failed to delete patient');
     },
@@ -163,7 +205,7 @@ export const api = {
     }): Promise<Vital> {
         const response = await fetch(`${API_BASE_URL}/db/vitals`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(data),
         });
         if (!response.ok) throw new Error('Failed to record vital');
@@ -192,6 +234,7 @@ export const api = {
     async acknowledgeAlert(alertId: string): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/db/alerts/${alertId}/acknowledge`, {
             method: 'POST',
+            headers: getAuthHeaders(),
         });
         if (!response.ok) throw new Error('Failed to acknowledge alert');
     },
@@ -199,6 +242,7 @@ export const api = {
     async dismissAlert(alertId: string): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/db/alerts/${alertId}/dismiss`, {
             method: 'POST',
+            headers: getAuthHeaders(),
         });
         if (!response.ok) throw new Error('Failed to dismiss alert');
     },
@@ -264,7 +308,7 @@ export const api = {
     }): Promise<{ id: string }> {
         const response = await fetch(`${API_BASE_URL}/db/labs`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(data),
         });
         if (!response.ok) throw new Error('Failed to record lab');
@@ -294,7 +338,7 @@ export const api = {
     }): Promise<{ id: string }> {
         const response = await fetch(`${API_BASE_URL}/db/notes`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(data),
         });
         if (!response.ok) throw new Error('Failed to create note');
@@ -312,9 +356,22 @@ export const api = {
         confidence: number;
         model_used?: string;
         computed_at: string;
+        explanation?: {
+            summary: string[];
+            contributing_factors: Array<{
+                feature: string;
+                display_name: string;
+                value: number;
+                explanation: string;
+            }>;
+        };
+        alert_created?: boolean;
+        velocity?: 'stable' | 'slowly_worsening' | 'rapid_deterioration' | 'improving' | 'unknown';
+        velocity_daily_change?: number;
     }> {
         const response = await fetch(`${API_BASE_URL}/db/patients/${patientId}/compute-risk`, {
             method: 'POST',
+            headers: getAuthHeaders(),
         });
         if (!response.ok) throw new Error('Failed to compute risk');
         return response.json();

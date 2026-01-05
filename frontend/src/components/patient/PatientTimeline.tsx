@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePatients, useAlerts } from '@/context';
-import { Card, CardContent, Badge } from '@/components/ui';
+import { Card, CardContent, Badge, Button } from '@/components/ui';
 import {
     Activity, FileText, Pill, Calendar, AlertTriangle,
-    Stethoscope, TestTube, ClipboardList
+    Stethoscope, TestTube, ClipboardList, ChevronDown, ChevronUp
 } from 'lucide-react';
 // Type imports for documentation - all used in type definitions below
 import { cn } from '@/utils/cn';
@@ -50,8 +50,39 @@ export function PatientTimeline({ patientId }: PatientTimelineProps) {
 
     const alerts = getAlertsByPatient(patientId);
 
+    // TASK-5.1: Soft deduplication - filter events with same type + timestamp within 1 minute
+    const deduplicate = (events: TimelineEvent[]): TimelineEvent[] => {
+        const seen = new Map<string, TimelineEvent>();
+        return events.filter(event => {
+            const timestampMinute = Math.floor(new Date(event.timestamp).getTime() / 60000);
+            const key = `${event.type}-${event.title}-${timestampMinute}`;
+            if (seen.has(key)) return false;
+            seen.set(key, event);
+            return true;
+        });
+    };
+
+    // TASK-5.2: Get relative date label (Today, Yesterday, or full date)
+    const getRelativeDate = (timestamp: string): string => {
+        const eventDate = new Date(timestamp);
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const eventDay = eventDate.toDateString();
+        if (eventDay === today.toDateString()) return 'Today';
+        if (eventDay === yesterday.toDateString()) return 'Yesterday';
+
+        return eventDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+    };
+
     // Convert all data to timeline events
-    const timelineEvents: TimelineEvent[] = [
+    const rawTimelineEvents: TimelineEvent[] = [
         ...vitals.map((v): TimelineEvent => ({
             id: v.id || Math.random().toString(),
             timestamp: v.timestamp || v.recorded_at || new Date().toISOString(),
@@ -90,18 +121,59 @@ export function PatientTimeline({ patientId }: PatientTimelineProps) {
         })),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-    // Group events by date
-    const groupedEvents = timelineEvents.reduce((acc, event) => {
-        const date = new Date(event.timestamp).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
+    // Apply deduplication
+    const timelineEvents = deduplicate(rawTimelineEvents);
+
+    // State for collapsed sections (TASK-5.3)
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+
+    // Group events by date with relative labels
+    const groupedEvents = useMemo(() => {
+        return timelineEvents.reduce((acc, event) => {
+            const date = getRelativeDate(event.timestamp);
+            if (!acc[date]) acc[date] = [];
+            acc[date].push(event);
+            return acc;
+        }, {} as Record<string, TimelineEvent[]>);
+    }, [timelineEvents]);
+
+    // TASK-5.3: Helper to get events to display (with collapsing logic)
+    const getDisplayEvents = (date: string, events: TimelineEvent[]) => {
+        // Group by type within the day
+        const byType = events.reduce((acc, e) => {
+            if (!acc[e.title]) acc[e.title] = [];
+            acc[e.title].push(e);
+            return acc;
+        }, {} as Record<string, TimelineEvent[]>);
+
+        const isExpanded = expandedSections.has(date);
+        const displayEvents: TimelineEvent[] = [];
+        let hiddenCount = 0;
+
+        Object.entries(byType).forEach(([, typeEvents]) => {
+            if (typeEvents.length > 3 && !isExpanded) {
+                // Show first 2, hide rest
+                displayEvents.push(...typeEvents.slice(0, 2));
+                hiddenCount += typeEvents.length - 2;
+            } else {
+                displayEvents.push(...typeEvents);
+            }
         });
-        if (!acc[date]) acc[date] = [];
-        acc[date].push(event);
-        return acc;
-    }, {} as Record<string, TimelineEvent[]>);
+
+        // Re-sort by timestamp
+        displayEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        return { displayEvents, hiddenCount, isExpanded };
+    };
+
+    const toggleSection = (date: string) => {
+        setExpandedSections(prev => {
+            const next = new Set(prev);
+            if (next.has(date)) next.delete(date);
+            else next.add(date);
+            return next;
+        });
+    };
 
     if (loading) {
         return (
@@ -128,66 +200,97 @@ export function PatientTimeline({ patientId }: PatientTimelineProps) {
 
     return (
         <div className="space-y-6">
-            {Object.entries(groupedEvents).map(([date, events]) => (
-                <div key={date}>
-                    <h3 className="text-sm font-medium text-[hsl(var(--muted-foreground))] mb-3 flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        {date}
-                    </h3>
-                    <div className="relative pl-6 border-l-2 border-[hsl(var(--border))] space-y-3">
-                        {events.map((event) => (
-                            <div key={event.id} className="relative">
-                                {/* Timeline dot */}
-                                <div className={cn(
-                                    'absolute -left-[25px] w-4 h-4 rounded-full flex items-center justify-center',
-                                    event.isAbnormal
-                                        ? 'bg-[hsl(var(--risk-high))]'
-                                        : event.type === 'alert'
-                                            ? 'bg-[hsl(var(--risk-medium))]'
-                                            : 'bg-[hsl(var(--primary))]'
-                                )}>
-                                    <div className="w-2 h-2 bg-white rounded-full" />
-                                </div>
+            {Object.entries(groupedEvents).map(([date, events]) => {
+                const { displayEvents, hiddenCount, isExpanded } = getDisplayEvents(date, events);
+                return (
+                    <div key={date}>
+                        <h3 className="text-sm font-medium text-[hsl(var(--muted-foreground))] mb-3 flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            {date}
+                            {events.length > 3 && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-[hsl(var(--secondary))]">
+                                    {events.length} events
+                                </span>
+                            )}
+                        </h3>
+                        <div className="relative pl-6 border-l-2 border-[hsl(var(--border))] space-y-3">
+                            {displayEvents.map((event) => (
+                                <div key={event.id} className="relative">
+                                    {/* Timeline dot */}
+                                    <div className={cn(
+                                        'absolute -left-[25px] w-4 h-4 rounded-full flex items-center justify-center',
+                                        event.isAbnormal
+                                            ? 'bg-[hsl(var(--risk-high))]'
+                                            : event.type === 'alert'
+                                                ? 'bg-[hsl(var(--risk-medium))]'
+                                                : 'bg-[hsl(var(--primary))]'
+                                    )}>
+                                        <div className="w-2 h-2 bg-white rounded-full" />
+                                    </div>
 
-                                <Card className={cn(
-                                    event.isAbnormal && 'border-[hsl(var(--risk-high))]'
-                                )}>
-                                    <CardContent className="p-3">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className={cn(
-                                                    event.isAbnormal
-                                                        ? 'text-[hsl(var(--risk-high))]'
-                                                        : 'text-[hsl(var(--primary))]'
-                                                )}>
-                                                    {event.icon}
-                                                </span>
-                                                <div>
-                                                    <p className="font-medium text-sm">{event.title}</p>
-                                                    <p className="text-sm text-[hsl(var(--muted-foreground))]">
-                                                        {event.description}
-                                                    </p>
+                                    <Card className={cn(
+                                        event.isAbnormal && 'border-[hsl(var(--risk-high))]'
+                                    )}>
+                                        <CardContent className="p-3">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={cn(
+                                                        event.isAbnormal
+                                                            ? 'text-[hsl(var(--risk-high))]'
+                                                            : 'text-[hsl(var(--primary))]'
+                                                    )}>
+                                                        {event.icon}
+                                                    </span>
+                                                    <div>
+                                                        <p className="font-medium text-sm">{event.title}</p>
+                                                        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                                                            {event.description}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {event.isAbnormal && (
+                                                        <Badge variant="high" className="text-xs">Abnormal</Badge>
+                                                    )}
+                                                    <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                                                        {new Date(event.timestamp).toLocaleTimeString('en-US', {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                        })}
+                                                    </span>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                {event.isAbnormal && (
-                                                    <Badge variant="high" className="text-xs">Abnormal</Badge>
-                                                )}
-                                                <span className="text-xs text-[hsl(var(--muted-foreground))]">
-                                                    {new Date(event.timestamp).toLocaleTimeString('en-US', {
-                                                        hour: '2-digit',
-                                                        minute: '2-digit',
-                                                    })}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        ))}
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            ))}
+                            {/* TASK-5.3: Expand/Collapse button when hidden entries exist */}
+                            {hiddenCount > 0 && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full text-xs text-[hsl(var(--muted-foreground))]"
+                                    onClick={() => toggleSection(date)}
+                                >
+                                    <ChevronDown className="w-4 h-4 mr-1" />
+                                    Show {hiddenCount} more readings
+                                </Button>
+                            )}
+                            {isExpanded && events.length > 3 && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full text-xs text-[hsl(var(--muted-foreground))]"
+                                    onClick={() => toggleSection(date)}
+                                >
+                                    <ChevronUp className="w-4 h-4 mr-1" />
+                                    Show less
+                                </Button>
+                            )}
+                        </div>
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 }

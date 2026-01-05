@@ -1,6 +1,7 @@
+import React from 'react';
 import { RiskLevel, TrendDirection } from '@/types';
 import { Badge, Card, CardContent } from '@/components/ui';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { ChartDataPoint } from '@/types';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
@@ -89,6 +90,8 @@ interface RiskScoreGaugeProps {
 }
 
 export function RiskScoreGauge({ score, level }: RiskScoreGaugeProps) {
+    const [showTooltip, setShowTooltip] = React.useState(false);
+
     const levelColors = {
         low: 'hsl(var(--risk-low))',
         medium: 'hsl(var(--risk-medium))',
@@ -97,8 +100,39 @@ export function RiskScoreGauge({ score, level }: RiskScoreGaugeProps) {
     };
 
     return (
-        <Card>
+        <Card className="relative">
             <CardContent className="p-6 text-center">
+                {/* Info Icon with Tooltip */}
+                <button
+                    className="absolute top-2 right-2 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+                    onMouseEnter={() => setShowTooltip(true)}
+                    onMouseLeave={() => setShowTooltip(false)}
+                    onClick={() => setShowTooltip(!showTooltip)}
+                    aria-label="Risk score information"
+                >
+                    <Info className="w-4 h-4" />
+                </button>
+
+                {/* Tooltip */}
+                {showTooltip && (
+                    <div className="absolute top-8 right-2 z-50 w-64 p-3 bg-[hsl(var(--popover))] border border-[hsl(var(--border))] rounded-lg shadow-lg text-left text-xs">
+                        <p className="font-semibold mb-2">Understanding Risk Score</p>
+                        <p className="mb-2">
+                            <strong>Risk Score (0-100):</strong> Probability of clinical deterioration.
+                            This is NOT a diagnosis — it indicates likelihood of worsening condition based on trends.
+                        </p>
+                        <p className="mb-2">
+                            <strong>Risk Level:</strong>
+                            <br />• Low (0-39): Normal monitoring
+                            <br />• Medium (40-69): Increased attention needed
+                            <br />• High (70+): Urgent clinical review recommended
+                        </p>
+                        <p className="text-[hsl(var(--muted-foreground))] italic">
+                            This tool supports clinical judgment — it does not replace it.
+                        </p>
+                    </div>
+                )}
+
                 <div className="relative inline-flex items-center justify-center">
                     <svg className="w-32 h-32 -rotate-90">
                         <circle
