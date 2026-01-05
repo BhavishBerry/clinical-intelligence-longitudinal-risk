@@ -3,8 +3,11 @@
 > An AI-powered early-warning intelligence layer that continuously monitors patients over time and alerts clinicians when slow, silent deterioration is happening.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-In%20Development-yellow.svg)]()
+[![Status](https://img.shields.io/badge/status-Active-brightgreen.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10+-brightgreen.svg)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)]()
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-teal.svg)]()
+[![React](https://img.shields.io/badge/React-18+-61DAFB.svg)]()
 
 ---
 
@@ -29,171 +32,374 @@ Consider a patient visiting a clinic over two years:
 - Risk accumulated silently over **18 months**
 - Early intervention opportunity was **missed**
 
----
-
-## ❌ Why Current Systems Fail
-
-### 1. EMRs Store Data, Not Meaning
-- Lab values, notes, and prescriptions are stored
-- **No reasoning over time** — no trajectory awareness
-- Doctors see isolated numbers, not evolution
-
-### 2. Humans Are Bad at Trend Detection
-- Doctors see dozens of patients daily
-- Cannot mentally plot multi-year trends
-- Slow deterioration is easily missed
-
-### 3. Rule-Based Alerts Are Insufficient
-Traditional logic: `IF glucose > 140 → alert`
-
-But this **misses**:
-```
-110 → 118 → 126 → 142 (over time)
-```
-
 > **Trajectory matters more than thresholds.**
 
 ---
 
-## ✅ The Solution
-
-This platform answers a critical question:
-
-> **"Is this patient getting worse over time, even if nothing looks dangerous today?"**
-
-### Key Capabilities
-
-| Feature | Description |
-|---------|-------------|
-| **Longitudinal Tracking** | Treat patients as continuous stories, not isolated records |
-| **Trend-Based Reasoning** | Analyze direction, rate, and duration of changes |
-| **Explainable Alerts** | No black-box outputs — explain what changed, over how long, and why it matters |
-| **Actionable Insights** | Risk levels, trend explanations, and timeline visualizations |
-
----
-
-## 🔧 How It Works
-
-### 1. Longitudinal Data Ingestion
-Ingests multiple data types:
-- Lab reports (PDFs)
-- Vitals
-- Visit notes
-- Prescriptions
-- Dates
-
-Data is organized by **patient** and **timeline**.
-
-### 2. Normalize and Track Trends
-For each patient, the system tracks:
-- Blood glucose
-- Blood pressure
-- Cholesterol
-- Other key biomarkers
-
-Computing:
-- Direction of change
-- Rate of change
-- Duration of abnormal trend
-
-### 3. Risk Reasoning (Core Intelligence)
-Instead of hard threshold rules, the system reasons:
+## 🏗️ System Architecture
 
 ```
-IF a metric is consistently worsening
-AND the duration exceeds a meaningful window
-AND patient context increases risk
-THEN overall risk is escalating
-```
-
-### 4. Explainability
-Every alert includes:
-- What changed
-- Over how long
-- Why it matters
-
-**Example:**
-> Blood glucose increased 29% over 18 months. Blood pressure rose steadily across four visits. No medication intervention during this period.
-
-### 5. Actionable Output
-The system produces:
-- **Risk Level:** Low / Medium / High
-- **Trend Explanation:** Human-readable insights
-- **Timeline Visualization:** Visual progression
-- **Suggested Clinical Review:** (not diagnosis)
-
----
-
-## 📊 Example Output
-
-```
-Patient: Raj
-Risk Level: High (↑ from Medium)
-
-Key Drivers:
-  • Sustained glucose increase
-  • Rising blood pressure trend
-  • Delayed intervention
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           CLINICAL INTELLIGENCE PLATFORM                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
+│  │   FRONTEND  │    │   BACKEND   │    │  DATABASE   │    │  ML MODELS  │   │
+│  │  (React)    │◄──►│  (FastAPI)  │◄──►│  (SQLite)   │    │  (Sklearn)  │   │
+│  └─────────────┘    └─────────────┘    └─────────────┘    └──────┬──────┘   │
+│        │                   │                   │                  │          │
+│        │                   │                   │                  │          │
+│  ┌─────▼─────────────────────────────────────────────────────────▼─────┐    │
+│  │                         6-STAGE PIPELINE                              │    │
+│  │  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐              │    │
+│  │  │ 1.  │  │ 2.  │  │ 3.  │  │ 4.  │  │ 5.  │  │ 6.  │              │    │
+│  │  │Data │─►│Trend│─►│Risk │─►│Alert│─►│Expl │─►│Feed │              │    │
+│  │  │Ingest│  │Detect│  │Score│  │Gen  │  │Engine│  │back │              │    │
+│  │  └─────┘  └─────┘  └─────┘  └─────┘  └─────┘  └─────┘              │    │
+│  └────────────────────────────────────────────────────────────────────┘    │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🎯 Use Cases
+## 🔧 6-Stage Clinical Intelligence Pipeline
 
-### Metabolic Risk Monitoring
-Track glucose, blood pressure, and cholesterol trends to catch pre-diabetes and cardiovascular risk early.
+### Stage 1: Data Ingestion & Normalization
+**Purpose:** Collect and normalize patient data from multiple sources
 
-### Renal Function Monitoring
-Detect slow but consistent creatinine increases (e.g., 0.9 → 1.1 → 1.3) before irreversible kidney damage.
+| Data Type | Format | Storage |
+|-----------|--------|---------|
+| Vitals | BP, Heart Rate, Temperature, SpO2 | `vitals` table |
+| Labs | Glucose, Creatinine, Cholesterol, HbA1c | `labs` table |
+| Clinical Notes | Doctor observations, procedures | `clinical_notes` table |
+| CSV Bulk Import | MRN-based batch uploads | Validated via `ClinicalImporter` |
 
-### General Chronic Disease Management
-Monitor any biomarker trajectory for patients with chronic conditions.
+**Validation Rules:**
+- Blood Pressure: Systolic must be > Diastolic
+- Temperature: 35°C - 42°C range
+- Heart Rate: 30 - 200 bpm
+- Timestamps: Cannot be in the future
+
+### Stage 2: Trend Detection (No ML)
+**Purpose:** Extract mathematical trends from time-series data
+
+```python
+# Pure math computation - no ML involved
+features = {
+    "sugar_percent_change": (latest - earliest) / earliest * 100,
+    "sugar_trend_up": 1 if latest > earliest else 0,
+    "bp_velocity": daily_change_rate,
+    "bp_volatility": standard_deviation,
+    "trend_duration_months": time_span_in_months,
+    "medication_delay": days_until_intervention
+}
+```
+
+### Stage 3: Risk Scoring (ML Model)
+**Purpose:** Predict patient deterioration probability
+
+| Component | Description |
+|-----------|-------------|
+| **Model Type** | Gradient Boosting Classifier (scikit-learn) |
+| **Training Data** | Synthetic longitudinal patient data |
+| **Input Features** | 12 trend features (glucose, BP, age, etc.) |
+| **Output** | Risk probability (0.0 - 1.0) |
+| **Model Routing** | Auto-selects: diabetes, cardiac, or general model |
+
+**Risk Levels:**
+| Score Range | Level | Clinical Action |
+|-------------|-------|-----------------|
+| 0.0 - 0.3 | LOW | Routine monitoring |
+| 0.3 - 0.5 | MEDIUM | Enhanced surveillance |
+| 0.5 - 0.7 | HIGH | Alert generated |
+| 0.7 - 1.0 | CRITICAL | Immediate review |
+
+### Stage 4: Alert Generation
+**Purpose:** Notify clinicians of concerning patients
+
+**Trigger Logic:**
+```python
+if risk_level in ["HIGH", "CRITICAL"]:
+    if no_active_alert_for_patient():
+        create_alert(
+            severity=risk_level.lower(),
+            title=f"{risk_level} Risk Detected",
+            explanation=contributing_factors,
+            auto_generated=True
+        )
+```
+
+**Deduplication:** 
+- Checks for existing active alerts per patient
+- Prevents alert fatigue from repeated triggers
+
+### Stage 5: Explanation Engine
+**Purpose:** Generate human-readable explanations for risk scores
+
+**Example Output:**
+```json
+{
+  "summary": [
+    "Blood glucose 156 mg/dL exceeds normal (>140)",
+    "Systolic BP 148 mmHg is elevated (>140)",
+    "Advanced age (68 years) increases baseline risk"
+  ],
+  "contributing_factors": [
+    {"feature": "glucose", "value": 156, "severity": "high"},
+    {"feature": "blood_pressure", "value": 148, "severity": "medium"},
+    {"feature": "age", "value": 68, "severity": "low"}
+  ]
+}
+```
+
+### Stage 6: Feedback Loop
+**Purpose:** Improve model with clinician feedback
+
+| Feedback Type | Values | Storage |
+|---------------|--------|---------|
+| Alert Helpfulness | `helpful` / `not_helpful` | `alerts.feedback` column |
 
 ---
 
-## 🏗️ Project Scope
-
-This is a **large, serious project** requiring:
-
-- [ ] Persistent patient timelines
-- [ ] Temporal reasoning logic
-- [ ] Risk aggregation strategies
-- [ ] Explainable alerts
-- [ ] Safety-first outputs
-- [ ] Feedback and evaluation loops
-
-> **Note:** This is weeks of system thinking, not a quick demo.
-
----
-
-## 📁 Project Structure
+## 📁 Complete Project Structure
 
 ```
 clinical_intelligence_platform/
-├── backend/                    # FastAPI backend
-│   ├── main.py                 # Main application entry point
-│   ├── database.py             # SQLite/PostgreSQL database models
-│   └── routes.py               # REST API endpoints
-├── frontend/                   # React + TypeScript frontend
+├── backend/
+│   ├── main.py                 # FastAPI app initialization, CORS, JSON patient API
+│   ├── database.py             # SQLAlchemy models (User, Patient, Vital, Alert, Lab, etc.)
+│   ├── routes.py               # Database CRUD API (52 endpoints)
+│   ├── auth.py                 # JWT authentication + RBAC (require_admin/doctor/nurse)
+│   └── utils/
+│       └── importer.py         # ClinicalImporter for CSV bulk upload with validation
+│
+├── frontend/
 │   ├── src/
-│   │   ├── components/         # UI components
-│   │   │   ├── charts/         # TimelineChart, RiskGauge
-│   │   │   ├── clinical/       # RiskDriverPanel, SafetyDisclaimer, etc.
-│   │   │   ├── patient/        # PatientCard, RiskBadge, etc.
-│   │   │   └── ui/             # Button, Card, Badge, etc.
-│   │   ├── context/            # AuthContext, PatientContext, AlertContext
-│   │   ├── pages/              # DashboardPage, PatientDetailPage, AlertsPage
-│   │   └── services/           # API service layer
+│   │   ├── components/
+│   │   │   ├── charts/         # TimelineChart, RiskGauge, VitalsChart
+│   │   │   ├── clinical/       # RiskDriversPanel, SafetyDisclaimer, AlertCard
+│   │   │   ├── patient/        # PatientCard, RiskBadge, AddPatientModal
+│   │   │   └── ui/             # Button, Card, Badge, Input (shadcn-style)
+│   │   ├── context/
+│   │   │   ├── AuthContext.tsx      # JWT token management
+│   │   │   ├── PatientContext.tsx   # Patient state + API integration
+│   │   │   └── AlertContext.tsx     # Alert state + feedback persistence
+│   │   ├── pages/
+│   │   │   ├── DashboardPage.tsx    # Patient overview with risk distribution
+│   │   │   ├── PatientDetailPage.tsx # Full patient view with charts
+│   │   │   ├── AlertsPage.tsx       # Alert management workflow
+│   │   │   ├── SettingsPage.tsx     # Config toggles (admin only)
+│   │   │   ├── UploadPage.tsx       # CSV import with preview
+│   │   │   └── LoginPage.tsx        # Authentication
+│   │   └── services/
+│   │       └── api.ts          # Typed API client with auth headers
 │   └── package.json
-├── scripts/                    # Data and training scripts
-│   ├── generate_synthetic_data.py
-│   ├── train_risk_model.py
-│   └── explanation_engine.py
-├── models/                     # Trained ML models (.pkl files)
-├── docs/                       # Documentation
-├── data/                       # Database files
-└── requirements-data.txt       # Python dependencies
+│
+├── scripts/
+│   ├── generate_synthetic_data.py   # Creates training data
+│   ├── train_risk_model.py          # Trains ML models
+│   └── explanation_engine.py        # Feature importance extraction
+│
+├── models/
+│   ├── diabetes_model.pkl           # Diabetes-specific risk model
+│   ├── cardiac_model.pkl            # Cardiac risk model
+│   ├── general_model.pkl            # General population model
+│   └── logistic_regression_scaler.pkl
+│
+├── alembic/
+│   └── versions/                    # Database migrations
+│       ├── 775d9d6a123b_initial.py
+│       ├── fa8a5d1f08f3_add_app_config.py
+│       ├── a794e469f31e_add_mrn_to_patients.py
+│       └── 1ca59bbe2e79_add_feedback_to_alerts.py
+│
+├── data/
+│   └── clinical.db                  # SQLite database
+│
+└── requirements-data.txt            # Python dependencies
 ```
+
+---
+
+## 🔐 Security & Authentication
+
+### JWT-Based Authentication
+```
+Authorization: Bearer <token>
+```
+
+**Token Contents:**
+```json
+{
+  "user_id": "uuid",
+  "email": "doctor1@hospital",
+  "role": "doctor",
+  "exp": 1704499200
+}
+```
+
+### Role-Based Access Control (RBAC)
+
+| Endpoint | Admin | Doctor | Nurse | Public |
+|----------|:-----:|:------:|:-----:|:------:|
+| `POST /db/patients` | ✅ | ✅ | ❌ | ❌ |
+| `DELETE /db/patients/{id}` | ✅ | ❌ | ❌ | ❌ |
+| `POST /db/vitals` | ✅ | ✅ | ✅ | ❌ |
+| `POST /db/labs` | ✅ | ✅ | ✅ | ❌ |
+| `POST /db/notes` | ✅ | ✅ | ✅ | ❌ |
+| `POST /db/alerts/{id}/acknowledge` | ✅ | ✅ | ✅ | ❌ |
+| `POST /db/alerts/{id}/dismiss` | ✅ | ✅ | ❌ | ❌ |
+| `POST /db/alerts/{id}/feedback` | ✅ | ✅ | ✅ | ❌ |
+| `POST /db/config` | ✅ | ❌ | ❌ | ❌ |
+| `POST /upload/import` | ✅ | ❌ | ❌ | ❌ |
+| `GET /db/patients` | ✅ | ✅ | ✅ | ❌ |
+| `GET /db/alerts` | ✅ | ✅ | ✅ | ❌ |
+
+---
+
+## 📊 Database Schema
+
+### Entity Relationship Diagram
+
+```
+┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+│    users    │       │   patients  │       │    vitals   │
+├─────────────┤       ├─────────────┤       ├─────────────┤
+│ id (PK)     │       │ id (PK)     │◄──────│ patient_id  │
+│ email       │◄──────│ created_by  │       │ vital_type  │
+│ password_hash│       │ name        │       │ value       │
+│ name        │       │ age         │       │ value2      │
+│ role        │       │ sex         │       │ unit        │
+│ created_at  │       │ location    │       │ recorded_at │
+└─────────────┘       │ mrn         │       └─────────────┘
+                      │ current_risk│              │
+                      │ risk_level  │              │
+                      └─────────────┘              │
+                            │                      │
+              ┌─────────────┼─────────────┐       │
+              │             │             │       │
+              ▼             ▼             ▼       │
+        ┌───────────┐ ┌───────────┐ ┌───────────┐│
+        │   alerts  │ │   labs    │ │risk_scores││
+        ├───────────┤ ├───────────┤ ├───────────┤│
+        │ patient_id│ │ patient_id│ │ patient_id││
+        │ severity  │ │ lab_type  │ │ risk_score││
+        │ title     │ │ value     │ │ risk_level││
+        │ explanation│ │ unit      │ │ model_used││
+        │ status    │ │ recorded_at│ │ confidence││
+        │ feedback  │ └───────────┘ │ computed_at│
+        │ auto_gen  │               └───────────┘
+        │ risk_snap │
+        └───────────┘
+
+        ┌───────────────┐    ┌───────────────┐
+        │clinical_notes │    │  app_config   │
+        ├───────────────┤    ├───────────────┤
+        │ patient_id    │    │ key (PK)      │
+        │ note_type     │    │ value         │
+        │ content       │    │ updated_at    │
+        │ created_by    │    └───────────────┘
+        │ created_at    │
+        └───────────────┘
+```
+
+---
+
+## 🚀 API Endpoints Reference
+
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/login` | Login and receive JWT token |
+
+### Patients
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/db/patients` | List all patients | Nurse+ |
+| GET | `/db/patients/{id}` | Get patient details | Nurse+ |
+| POST | `/db/patients` | Create patient | Doctor+ |
+| DELETE | `/db/patients/{id}` | Delete patient | Admin |
+
+### Vitals & Labs
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/db/patients/{id}/vitals` | Get patient vitals | Nurse+ |
+| POST | `/db/vitals` | Record vital (auto-triggers risk calc) | Nurse+ |
+| GET | `/db/patients/{id}/labs` | Get patient labs | Nurse+ |
+| POST | `/db/labs` | Record lab result | Nurse+ |
+
+### Alerts
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/db/alerts` | List all alerts | Nurse+ |
+| GET | `/db/patients/{id}/alerts` | Patient alerts | Nurse+ |
+| POST | `/db/alerts/{id}/acknowledge` | Acknowledge alert | Nurse+ |
+| POST | `/db/alerts/{id}/dismiss` | Dismiss alert | Doctor+ |
+| POST | `/db/alerts/{id}/feedback` | Set helpful/not_helpful | Nurse+ |
+
+### Risk Scoring
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/db/patients/{id}/risk-history` | Get risk score history | Nurse+ |
+| POST | `/db/patients/{id}/compute-risk` | Manually trigger risk calc | Doctor+ |
+
+### Data Import
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/upload/preview` | Validate CSV without saving | Public |
+| POST | `/upload/import` | Import CSV data | Admin |
+
+### Configuration
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/db/config` | Get app configuration | Public |
+| POST | `/db/config` | Update configuration | Admin |
+
+---
+
+## 🖥️ Frontend Pages
+
+### 1. Dashboard (`/`)
+- **Patient Cards** with risk score badges
+- **Risk Distribution Pie Chart** (Low/Medium/High/Critical)
+- **Search & Sort** by name, risk level
+- **Add Patient Modal**
+- **Active Alert Count**
+
+### 2. Patient Detail (`/patients/:id`)
+- **Risk Score Gauge** (0-100%)
+- **Risk Velocity Indicator** (stable/worsening/deteriorating)
+- **Risk Drivers Panel** with contributing factors
+- **Vitals Charts** (Glucose, BP, Heart Rate)
+- **Labs Charts** (Creatinine, Cholesterol)
+- **Risk History Chart**
+- **Timeline View** (vitals, labs, notes grouped by day)
+- **Record Data Form** (add vitals, labs, notes)
+- **Recompute Risk Button**
+
+### 3. Alerts (`/alerts`)
+- **Filter Tabs** (All/Active/Acknowledged/Dismissed)
+- **Alert Cards** with severity badges
+- **Bot Badge** for auto-generated alerts
+- **Acknowledge/Dismiss Actions**
+- **Feedback Buttons** (Helpful/Not Helpful)
+- **Link to Patient**
+
+### 4. Settings (`/settings`) - Admin Only
+- **Enable Alerts Toggle** (global on/off)
+- **Enable Risk Scoring Toggle**
+- **Reset Session Button**
+
+### 5. Upload (`/upload`) - Admin Only
+- **File Upload** (CSV/Excel)
+- **Preview Validation** (shows valid/invalid rows)
+- **Import Button** (commits to database)
+- **Error Details** per row
+
+### 6. Login (`/login`)
+- **Email/Password Form**
+- **Role Display** after login
 
 ---
 
@@ -206,22 +412,29 @@ clinical_intelligence_platform/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/clinical-intelligence-platform.git
-cd clinical-intelligence-platform
+git clone https://github.com/BhavishBerry/clinical-intelligence-longitudinal-risk.git
+cd clinical-intelligence-longitudinal-risk
 ```
 
 ### 2. Backend Setup
 ```bash
 # Create and activate virtual environment
 python -m venv venv
-.\venv\Scripts\activate  # Windows
-# source venv/bin/activate  # Linux/Mac
+
+# Windows
+.\venv\Scripts\activate
+
+# Linux/Mac
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements-data.txt
 
+# Initialize database (creates tables + demo data)
+python -m backend.database --init --seed
+
 # Start the backend server
-uvicorn backend.main:app --reload --port 8000
+python -m uvicorn backend.main:app --reload --port 8000
 ```
 
 ### 3. Frontend Setup
@@ -233,9 +446,12 @@ npm run dev
 ```
 
 ### 4. Access the Application
-- **Frontend:** http://localhost:5173
-- **Backend API:** http://localhost:8000
-- **API Docs:** http://localhost:8000/docs
+| Service | URL |
+|---------|-----|
+| **Frontend** | http://localhost:5173 |
+| **Backend API** | http://localhost:8000 |
+| **API Docs (Swagger)** | http://localhost:8000/docs |
+| **API Docs (ReDoc)** | http://localhost:8000/redoc |
 
 ### Demo Credentials
 | Role | Email | Password |
@@ -246,59 +462,92 @@ npm run dev
 
 ---
 
-## ⚡ Platform Features
+## 📈 Data Flow: End-to-End Example
 
-### 🎯 Core Capabilities
-| Feature | Description |
-|---------|-------------|
-| **ML Risk Scoring** | Trained gradient boosting model predicts patient deterioration risk (0-100%) |
-| **Risk Explanations** | Every score includes contributing factors and human-readable explanations |
-| **Longitudinal Charts** | Real-time charts for vitals, labs, and risk history from database |
-| **Automated Alerts** | High-risk patients automatically trigger alerts with deduplication |
-| **Role-Based Access** | JWT authentication with doctor/nurse/admin roles |
+### 1. Nurse Records Vital
+```
+POST /db/vitals
+{
+  "patient_id": "patient-1",
+  "vital_type": "blood_sugar",
+  "value": 185,
+  "unit": "mg/dL"
+}
+```
 
-### 📊 Patient Monitoring
-- **Risk Score Gauge** - Visual 0-100% risk indicator with color coding
-- **Risk Velocity Indicator** - Shows if patient is stable, worsening, or rapidly deteriorating
-- **Risk Drivers Panel** - Lists contributing factors (glucose trends, BP changes, age, etc.)
-- **Timeline View** - Grouped by day with collapsible sections and deduplication
+### 2. Backend Auto-Computes Risk
+```python
+# Triggered automatically after vital insert
+result = compute_risk_for_db_patient(patient_id, db)
+# Returns: {"risk_score": 0.72, "risk_level": "HIGH", "explanation": {...}}
+```
 
-### 📈 Data Visualization
-- **Glucose Trend Chart** - Real blood sugar readings over time
-- **Blood Pressure Chart** - Systolic/diastolic with threshold markers (140 mmHg high)
-- **Creatinine Chart** - Lab results for kidney function monitoring
-- **Risk History** - ML-computed risk scores over time
+### 3. Risk Score Saved to History
+```sql
+INSERT INTO risk_scores (patient_id, risk_score, risk_level, model_used)
+VALUES ('patient-1', 0.72, 'HIGH', 'diabetes');
+```
 
-### 🔔 Alert System
-- **Auto-Generated Alerts** - Created when risk reaches HIGH level
-- **Bot Badge** - Visual indicator for ML-generated vs manual alerts
-- **24-Hour Deduplication** - Prevents alert fatigue
-- **Acknowledge/Dismiss** - Clinical workflow for alert management
+### 4. Alert Auto-Generated (if HIGH/CRITICAL)
+```sql
+INSERT INTO alerts (patient_id, severity, title, auto_generated)
+VALUES ('patient-1', 'high', 'HIGH Risk Detected', true);
+```
 
-### 🔐 Security
-- **JWT Authentication** - Secure token-based login
-- **Role-Based Access Control** - Admin, Doctor, Nurse permission levels
-- **Protected Routes** - Sensitive endpoints require authentication
-- **Data Validation** - Vital signs validated against medical ranges
+### 5. Frontend Displays Alert
+```
+🔔 HIGH Risk Detected
+   Patient: Raj Kumar
+   Contributing Factors:
+   • Blood glucose 185 mg/dL exceeds normal (>140)
+   
+   [Acknowledge] [Dismiss] [👍 Helpful] [👎 Not Helpful]
+```
+
+---
+
+## 🧪 Testing
+
+### Backend API Tests
+```bash
+# Test endpoint returns 401 without auth
+curl -X POST http://localhost:8000/db/patients -H "Content-Type: application/json"
+# Expected: {"detail":"Authentication required"}
+
+# Test with auth
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"doctor1@hospital","password":"password"}'
+```
+
+### Frontend Type Check
+```bash
+cd frontend
+npx tsc --noEmit
+```
+
+### CSV Import Validation
+```bash
+# Preview without committing
+curl -X POST -F "file=@test.csv" http://localhost:8000/upload/preview
+```
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read the contributing guidelines before submitting a pull request.
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ---
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 📚 References
-
-- [Clinical Intelligence Platform Problem Statement (PDF)](./Clinical%20Intelligence%20Platform%20for%20Longitudinal%20Patient%20Risk%20Monitoring.pdf)
-- [Problem Dry Run](./clinical_intelligence_platform_problem_dry_run.md)
 
 ---
 
