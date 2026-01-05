@@ -55,6 +55,24 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
+
+# =============================================================================
+# APP CONFIG
+# =============================================================================
+
+class AppConfig(Base):
+    """Global application configuration (key-value store)"""
+    __tablename__ = "app_config"
+    
+    key = Column(String, primary_key=True)
+    value = Column(String)  # JSON encoded value or simple string
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# =============================================================================
+# USERS
+# =============================================================================
+
 class User(Base):
     """User model - replaces mockUsers.ts"""
     __tablename__ = "users"
@@ -75,6 +93,7 @@ class Patient(Base):
     __tablename__ = "patients"
     
     id = Column(String, primary_key=True, default=generate_uuid)
+    mrn = Column(String, unique=True, index=True, nullable=True)  # Added for CSV import matching
     name = Column(String, nullable=False)
     age = Column(Integer)
     sex = Column(String)  # M, F
@@ -146,6 +165,7 @@ class Alert(Base):
     # NEW: For auto-generated alerts with risk snapshots
     risk_snapshot = Column(Text)  # JSON: stores features + explanation at alert time
     auto_generated = Column(Boolean, default=False)  # manual vs auto
+    feedback = Column(String)  # FE-1 FIX: 'helpful' or 'not_helpful'
     
     # Relationships
     patient = relationship("Patient", back_populates="alerts")

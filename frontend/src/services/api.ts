@@ -85,6 +85,10 @@ export interface User {
     role: string;
 }
 
+export interface UserWithStats extends User {
+    patient_count: number;
+}
+
 export interface LoginResponse {
     token: string;
     user: User;
@@ -123,6 +127,29 @@ export interface RiskResult {
     computed_at?: string;
 }
 
+export interface ValidationResult {
+    total_rows: number;
+    valid_rows: number;
+    invalid_rows: number;
+    details: Array<{
+        row_index: number;
+        is_valid: boolean;
+        errors: string[];
+        warnings: string[];
+        original_data: Record<string, string>;
+    }>;
+    columns: string[];
+    error?: string;
+}
+
+export interface ImportResult {
+    success: boolean;
+    errors: string[];
+    records_count: number;
+    affected_patient_ids: string[];
+    risk_recalc_count?: number;
+}
+
 // API Functions
 export const api = {
     // =========================================================================
@@ -150,6 +177,33 @@ export const api = {
             throw new Error(error.detail || 'Login failed');
         }
         return response.json();
+    },
+
+    async getUsers(): Promise<UserWithStats[]> {
+        const response = await fetch(`${API_BASE_URL}/db/users`, {
+            headers: getAuthHeaders(),
+        });
+        if (!response.ok) throw new Error('Failed to fetch users');
+        return response.json();
+    },
+
+    // =========================================================================
+    // CONFIG
+    // =========================================================================
+
+    async getConfig(): Promise<Record<string, string>> {
+        const response = await fetch(`${API_BASE_URL}/db/config`);
+        if (!response.ok) throw new Error('Failed to fetch config');
+        return response.json();
+    },
+
+    async updateConfig(key: string, value: string): Promise<void> {
+        const response = await fetch(`${API_BASE_URL}/db/config`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ key, value }),
+        });
+        if (!response.ok) throw new Error('Failed to update config');
     },
 
     // =========================================================================
@@ -245,6 +299,15 @@ export const api = {
             headers: getAuthHeaders(),
         });
         if (!response.ok) throw new Error('Failed to dismiss alert');
+    },
+
+    async setAlertFeedback(alertId: string, feedback: 'helpful' | 'not_helpful'): Promise<void> {
+        const response = await fetch(`${API_BASE_URL}/db/alerts/${alertId}/feedback`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ feedback }),
+        });
+        if (!response.ok) throw new Error('Failed to set alert feedback');
     },
 
     // =========================================================================
@@ -374,6 +437,44 @@ export const api = {
             headers: getAuthHeaders(),
         });
         if (!response.ok) throw new Error('Failed to compute risk');
+        return response.json();
+    },
+
+    // =========================================================================
+    // UPLOAD / IMPORT
+    // =========================================================================
+
+    async uploadPreview(file: File): Promise<ValidationResult> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(`${API_BASE_URL}/upload/preview`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                ...getAuthHeaders(),
+            },
+        });
+
+        if (!response.ok) throw new Error('Failed to preview file');
+        return response.json();
+    },
+
+    async uploadImport(file: File): Promise<ImportResult> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const token = getToken();
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const response = await fetch(`${API_BASE_URL}/upload/import`, {
+            method: 'POST',
+            body: formData,
+            headers: headers,
+        });
+
+        if (!response.ok) throw new Error('Failed to import file');
         return response.json();
     },
 };

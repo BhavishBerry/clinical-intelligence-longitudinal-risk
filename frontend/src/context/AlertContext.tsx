@@ -28,7 +28,7 @@ interface AlertContextType {
     refreshAlerts: () => Promise<void>;
     acknowledgeAlert: (alertId: string) => Promise<void>;
     dismissAlert: (alertId: string, userId?: string) => Promise<void>;
-    setFeedback: (alertId: string, feedback: 'useful' | 'not_useful') => void;
+    setFeedback: (alertId: string, feedback: 'helpful' | 'not_helpful') => void;
     getAlertsByPatient: (patientId: string) => Alert[];
 }
 
@@ -68,6 +68,14 @@ export function AlertProvider({ children }: { children: ReactNode }) {
         setError(null);
 
         try {
+            // Check global config first
+            const config = await api.getConfig();
+            if (config.enable_alerts === 'false') {
+                setAlerts([]);
+                setLoading(false);
+                return;
+            }
+
             const data = await api.getAlerts();
             setAlerts(data.map(convertApiAlert));
         } catch (err) {
@@ -118,15 +126,19 @@ export function AlertProvider({ children }: { children: ReactNode }) {
         [alerts]
     );
 
-    const setFeedback = useCallback((alertId: string, feedback: 'useful' | 'not_useful') => {
-        const mappedFeedback = feedback === 'useful' ? 'helpful' : 'not_helpful';
-        setAlerts((prev) =>
-            prev.map((alert) =>
-                alert.id === alertId
-                    ? { ...alert, feedback: mappedFeedback as 'helpful' | 'not_helpful' }
-                    : alert
-            )
-        );
+    const setFeedback = useCallback(async (alertId: string, feedback: 'helpful' | 'not_helpful') => {
+        try {
+            await api.setAlertFeedback(alertId, feedback);
+            setAlerts((prev) =>
+                prev.map((alert) =>
+                    alert.id === alertId
+                        ? { ...alert, feedback }
+                        : alert
+                )
+            );
+        } catch (err) {
+            console.error('Failed to set alert feedback:', err);
+        }
     }, []);
 
     const activeAlerts = alerts.filter((a) => a.status === 'new' || a.status === 'reviewed' || a.status === 'monitoring');

@@ -9,11 +9,12 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from .database import get_db, User, Patient, Vital, Alert, RiskScore, Lab, ClinicalNote
+from .database import get_db, User, Patient, Vital, Alert, RiskScore, Lab, ClinicalNote, AppConfig
+from .utils.importer import ClinicalImporter
 from .auth import verify_token, get_optional_user, require_role, require_admin, require_doctor, require_nurse, TokenData, create_access_token
 
 
@@ -84,6 +85,14 @@ class UserResponse(BaseModel):
     email: str
     name: str
     role: str
+
+# Config
+class ConfigUpdateRequest(BaseModel):
+    key: str
+    value: str
+
+class UserListResponse(UserResponse):
+    patient_count: int
 
 # Patient
 class PatientCreate(BaseModel):
@@ -224,6 +233,101 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     }
 
 
+
+
+# -----------------------------------------------------------------------------
+# UPLOAD / IMPORT
+# -----------------------------------------------------------------------------
+
+@router.post("/upload/preview")
+async def preview_upload(file: UploadFile = File(...)):
+    """Preview a CSV upload without committing."""
+    content = await file.read()
+    importer = ClinicalImporter()
+    return importer.preview(content)
+
+@router.post("/upload/import")
+async def import_data(
+    file: UploadFile = File(...),
+    current_user: TokenData = Depends(require_admin), # Only admin/doctor? Let's say Admin for now logic
+    db: Session = Depends(get_db)
+):
+    """Import CSV data transactionally and recompute risk."""
+    content = await file.read()
+    importer = ClinicalImporter()
+    
+    result = importer.execute_import(db, content)
+    
+    if not result["success"]:
+        return result
+    
+    # Trigger Risk Recomputation
+    affected_ids = result.get("affected_patient_ids", [])
+    recalc_count = 0
+    
+    for patient_id in affected_ids:
+        # Recompute risk
+        try:
+            compute_risk_for_db_patient(patient_id, db)
+            recalc_count += 1
+        except Exception as e:
+            print(f"Error recomputing risk for {patient_id}: {e}")
+            # Don't fail the import for strict risk calc error, but log it
+    
+    result["risk_recalc_count"] = recalc_count
+    return result
+
+
+# -----------------------------------------------------------------------------
+# CONFIG
+# -----------------------------------------------------------------------------
+
+@router.get("/db/config")
+def get_config(db: Session = Depends(get_db)):
+    """Get global application configuration."""
+    configs = db.query(AppConfig).all()
+    return {c.key: c.value for c in configs}
+
+
+@router.post("/db/config")
+def update_config(
+    request: ConfigUpdateRequest,
+    current_user: TokenData = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Update a configuration key (Admin only)."""
+    config = db.query(AppConfig).filter(AppConfig.key == request.key).first()
+    
+    if not config:
+        config = AppConfig(key=request.key, value=request.value)
+        db.add(config)
+    else:
+        config.value = request.value
+    
+    db.commit()
+    return {"status": "success", "key": request.key, "value": request.value}
+
+
+# -----------------------------------------------------------------------------
+# USERS
+# -----------------------------------------------------------------------------
+
+@router.get("/db/users", response_model=List[UserListResponse])
+def list_users(
+    current_user: TokenData = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """List all users with their patient counts (Admin only)."""
+    users = db.query(User).all()
+    return [{
+        "id": u.id,
+        "email": u.email,
+        "name": u.name,
+        "role": u.role,
+        "patient_count": len(u.patients)
+    } for u in users]
+
+
 # -----------------------------------------------------------------------------
 # PATIENTS
 # -----------------------------------------------------------------------------
@@ -245,7 +349,7 @@ def get_patient(patient_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/db/patients", response_model=PatientResponse)
-def create_patient(patient: PatientCreate, db: Session = Depends(get_db)):
+def create_patient(patient: PatientCreate, db: Session = Depends(get_db), current_user: TokenData = Depends(require_doctor)):
     """Create a new patient."""
     new_patient = Patient(
         name=patient.name,
@@ -262,7 +366,7 @@ def create_patient(patient: PatientCreate, db: Session = Depends(get_db)):
 
 
 @router.delete("/db/patients/{patient_id}")
-def delete_patient(patient_id: str, db: Session = Depends(get_db)):
+def delete_patient(patient_id: str, db: Session = Depends(get_db), current_user: TokenData = Depends(require_admin)):
     """Delete a patient."""
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
@@ -346,6 +450,29 @@ def create_vital(vital: VitalCreate, db: Session = Depends(get_db), current_user
             )
             db.add(risk_record)
             db.commit()
+            
+            # E2E-1 FIX: Auto-create alert on HIGH/CRITICAL risk
+            if result["risk_level"] in ["HIGH", "CRITICAL"]:
+                # Check if active alert already exists for this patient
+                existing_alert = db.query(Alert).filter(
+                    Alert.patient_id == vital.patient_id,
+                    Alert.status == "active"
+                ).first()
+                
+                if not existing_alert:
+                    explanation_summary = result.get("explanation", {}).get("summary", [])
+                    new_alert = Alert(
+                        patient_id=vital.patient_id,
+                        severity="critical" if result["risk_level"] == "CRITICAL" else "high",
+                        title=f"{result['risk_level']} Risk Detected",
+                        explanation="; ".join(explanation_summary) if explanation_summary else "Elevated risk detected",
+                        status="active",
+                        auto_generated=True,
+                        risk_snapshot=json.dumps(result)
+                    )
+                    db.add(new_alert)
+                    db.commit()
+                    print(f"✓ Auto-generated alert for patient {vital.patient_id}")
     except Exception as e:
         # Don't fail the vital creation if risk scoring fails
         print(f"Warning: Auto risk scoring failed: {e}")
@@ -376,7 +503,7 @@ def get_patient_alerts(patient_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/db/alerts/{alert_id}/acknowledge")
-def acknowledge_alert(alert_id: str, db: Session = Depends(get_db)):
+def acknowledge_alert(alert_id: str, db: Session = Depends(get_db), current_user: TokenData = Depends(require_nurse)):
     """Acknowledge an alert."""
     alert = db.query(Alert).filter(Alert.id == alert_id).first()
     if not alert:
@@ -390,7 +517,7 @@ def acknowledge_alert(alert_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/db/alerts/{alert_id}/dismiss")
-def dismiss_alert(alert_id: str, db: Session = Depends(get_db)):
+def dismiss_alert(alert_id: str, db: Session = Depends(get_db), current_user: TokenData = Depends(require_doctor)):
     """Dismiss an alert."""
     alert = db.query(Alert).filter(Alert.id == alert_id).first()
     if not alert:
@@ -400,6 +527,32 @@ def dismiss_alert(alert_id: str, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": "Alert dismissed"}
+
+
+class FeedbackRequest(BaseModel):
+    feedback: str  # 'helpful' or 'not_helpful'
+
+
+@router.post("/db/alerts/{alert_id}/feedback")
+def set_alert_feedback(
+    alert_id: str,
+    request: FeedbackRequest,
+    db: Session = Depends(get_db),
+    current_user: TokenData = Depends(require_nurse)
+):
+    """Set feedback on an alert (helpful/not_helpful)."""
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    if request.feedback not in ["helpful", "not_helpful"]:
+        raise HTTPException(status_code=422, detail="Feedback must be 'helpful' or 'not_helpful'")
+    
+    alert.feedback = request.feedback
+    db.commit()
+    
+    return {"message": f"Feedback set to {request.feedback}"}
+
 
 
 # -----------------------------------------------------------------------------
@@ -439,7 +592,7 @@ def get_patient_labs(patient_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/db/labs", response_model=LabResponse)
-def create_lab(lab: LabCreate, db: Session = Depends(get_db)):
+def create_lab(lab: LabCreate, db: Session = Depends(get_db), current_user: TokenData = Depends(require_nurse)):
     """Record a new lab result."""
     # Verify patient exists
     patient = db.query(Patient).filter(Patient.id == lab.patient_id).first()
@@ -474,7 +627,7 @@ def get_patient_notes(patient_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/db/notes", response_model=ClinicalNoteResponse)
-def create_note(note: ClinicalNoteCreate, db: Session = Depends(get_db)):
+def create_note(note: ClinicalNoteCreate, db: Session = Depends(get_db), current_user: TokenData = Depends(require_nurse)):
     """Create a new clinical note."""
     # Verify patient exists
     patient = db.query(Patient).filter(Patient.id == note.patient_id).first()
