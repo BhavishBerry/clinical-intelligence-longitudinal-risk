@@ -11,7 +11,7 @@
 
 ---
 
-## 🩺 The Problem
+## The Problem
 
 **Doctors see patients as isolated visits, but disease progression happens over time — and current systems fail to connect those dots.**
 
@@ -36,7 +36,7 @@ Consider a patient visiting a clinic over two years:
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -63,7 +63,7 @@ Consider a patient visiting a clinic over two years:
 
 ---
 
-## 🔧 6-Stage Clinical Intelligence Pipeline
+## 6-Stage Clinical Intelligence Pipeline
 
 ### Stage 1: Data Ingestion & Normalization
 **Purpose:** Collect and normalize patient data from multiple sources
@@ -162,7 +162,7 @@ if risk_level in ["HIGH", "CRITICAL"]:
 
 ---
 
-## 📁 Complete Project Structure
+## Complete Project Structure
 
 ```
 clinical_intelligence_platform/
@@ -222,7 +222,7 @@ clinical_intelligence_platform/
 
 ---
 
-## 🔐 Security & Authentication
+## Security & Authentication
 
 ### JWT-Based Authentication
 ```
@@ -243,22 +243,22 @@ Authorization: Bearer <token>
 
 | Endpoint | Admin | Doctor | Nurse | Public |
 |----------|:-----:|:------:|:-----:|:------:|
-| `POST /db/patients` | ✅ | ✅ | ❌ | ❌ |
-| `DELETE /db/patients/{id}` | ✅ | ❌ | ❌ | ❌ |
-| `POST /db/vitals` | ✅ | ✅ | ✅ | ❌ |
-| `POST /db/labs` | ✅ | ✅ | ✅ | ❌ |
-| `POST /db/notes` | ✅ | ✅ | ✅ | ❌ |
-| `POST /db/alerts/{id}/acknowledge` | ✅ | ✅ | ✅ | ❌ |
-| `POST /db/alerts/{id}/dismiss` | ✅ | ✅ | ❌ | ❌ |
-| `POST /db/alerts/{id}/feedback` | ✅ | ✅ | ✅ | ❌ |
-| `POST /db/config` | ✅ | ❌ | ❌ | ❌ |
-| `POST /upload/import` | ✅ | ❌ | ❌ | ❌ |
-| `GET /db/patients` | ✅ | ✅ | ✅ | ❌ |
-| `GET /db/alerts` | ✅ | ✅ | ✅ | ❌ |
+| `POST /db/patients` | Yes | Yes | No | No |
+| `DELETE /db/patients/{id}` | Yes | No | No | No |
+| `POST /db/vitals` | Yes | Yes | Yes | No |
+| `POST /db/labs` | Yes | Yes | Yes | No |
+| `POST /db/notes` | Yes | Yes | Yes | No |
+| `POST /db/alerts/{id}/acknowledge` | Yes | Yes | Yes | No |
+| `POST /db/alerts/{id}/dismiss` | Yes | Yes | No | No |
+| `POST /db/alerts/{id}/feedback` | Yes | Yes | Yes | No |
+| `POST /db/config` | Yes | No | No | No |
+| `POST /upload/import` | Yes | No | No | No |
+| `GET /db/patients` | Yes | Yes | Yes | No |
+| `GET /db/alerts` | Yes | Yes | Yes | No |
 
 ---
 
-## 📊 Database Schema
+## Database Schema
 
 ### Entity Relationship Diagram
 
@@ -306,7 +306,7 @@ Authorization: Bearer <token>
 
 ---
 
-## 🚀 API Endpoints Reference
+## API Endpoints Reference
 
 ### Authentication
 | Method | Endpoint | Description |
@@ -358,7 +358,7 @@ Authorization: Bearer <token>
 
 ---
 
-## 🖥️ Frontend Pages
+## Frontend Pages
 
 ### 1. Dashboard (`/`)
 - **Patient Cards** with risk score badges
@@ -403,7 +403,7 @@ Authorization: Bearer <token>
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - **Python 3.10+** with pip
@@ -462,7 +462,7 @@ npm run dev
 
 ---
 
-## 📈 Data Flow: End-to-End Example
+## Data Flow: End-to-End Example
 
 ### 1. Nurse Records Vital
 ```
@@ -496,17 +496,17 @@ VALUES ('patient-1', 'high', 'HIGH Risk Detected', true);
 
 ### 5. Frontend Displays Alert
 ```
-🔔 HIGH Risk Detected
+HIGH Risk Detected
    Patient: Raj Kumar
    Contributing Factors:
    • Blood glucose 185 mg/dL exceeds normal (>140)
    
-   [Acknowledge] [Dismiss] [👍 Helpful] [👎 Not Helpful]
+   [Acknowledge] [Dismiss] [Helpful] [Not Helpful]
 ```
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Backend API Tests
 ```bash
@@ -534,7 +534,7 @@ curl -X POST -F "file=@test.csv" http://localhost:8000/upload/preview
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please:
 1. Fork the repository
@@ -545,13 +545,13 @@ Contributions are welcome! Please:
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 💡 The Real-World Impact
+## The Real-World Impact
 
 > **Hospitals don't lose patients because they lack data. They lose patients because risk is detected too late and slow deterioration goes unnoticed.**
 

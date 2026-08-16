@@ -84,9 +84,9 @@ class ModelRouter:
             if model_path.exists():
                 with open(model_path, 'rb') as f:
                     self.models[specialty] = pickle.load(f)
-                print(f"✓ Loaded {specialty} model")
+                print(f"Loaded {specialty} model")
             else:
-                print(f"⚠ {specialty} model not found")
+                print(f"{specialty} model not found")
         
         # Load metadata
         meta_path = MODELS_DIR / "specialty_models_metadata.json"
@@ -267,13 +267,13 @@ def create_router() -> ModelRouter:
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("🧠 Intelligent Model Router - Demo")
+    print("Intelligent Model Router - Demo")
     print("=" * 60)
     
     router = ModelRouter()
     
     # Test 1: Diabetes-only data
-    print("\n📊 Test 1: Diabetes-only patient data")
+    print("\nTest 1: Diabetes-only patient data")
     diabetes_patient = {
         'age': 55, 'sex': 1,
         'sugar_percent_change': 35, 'sugar_trend_up': 1,
@@ -286,7 +286,7 @@ if __name__ == "__main__":
     print(f"   Reason: {result['routing_reason']}")
     
     # Test 2: Cardiac-only data
-    print("\n❤️ Test 2: Cardiac-only patient data")
+    print("\nTest 2: Cardiac-only patient data")
     cardiac_patient = {
         'age': 62, 'sex': 0,
         'bp_percent_change': 25, 'bp_trend_up': 1,
@@ -299,7 +299,7 @@ if __name__ == "__main__":
     print(f"   Reason: {result['routing_reason']}")
     
     # Test 3: Mixed data (triggers ensemble)
-    print("\n🔬 Test 3: Mixed patient data (ensemble)")
+    print("\nTest 3: Mixed patient data (ensemble)")
     mixed_patient = {
         'age': 58, 'sex': 1,
         'sugar_percent_change': 20, 'sugar_trend_up': 1,
@@ -311,4 +311,4 @@ if __name__ == "__main__":
     print(f"   Risk: {result['risk_level']} ({result['risk_score']:.1%})")
     print(f"   Reason: {result['routing_reason']}")
     
-    print("\n✅ Router ready for production!")
+    print("\nRouter ready for production!")

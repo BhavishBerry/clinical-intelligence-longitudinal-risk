@@ -289,12 +289,12 @@ def create_explanation_engine() -> ExplanationEngine:
 def main():
     """Demo the explanation engine."""
     print("=" * 60)
-    print("🏥 Clinical Intelligence Platform - Explanation Engine Demo")
+    print("Clinical Intelligence Platform - Explanation Engine Demo")
     print("=" * 60)
     
     # Load feature importance from trained model
     importance = load_feature_importance()
-    print(f"\n📊 Loaded feature importance: {list(importance.keys())}")
+    print(f"\nLoaded feature importance: {list(importance.keys())}")
     
     # Create engine
     engine = ExplanationEngine(feature_importance=importance)
@@ -317,17 +317,17 @@ def main():
         "confidence": 0.82,
     }
     
-    print("\n📋 Sample Patient Features:")
+    print("\nSample Patient Features:")
     for k, v in sample_features.items():
         print(f"   {k}: {v}")
     
-    print(f"\n⚠️ Risk Result: {sample_risk}")
+    print(f"\nRisk Result: {sample_risk}")
     
     # Generate explanation
     explanation = engine.explain(sample_features, sample_risk)
     
     print("\n" + "=" * 60)
-    print("📝 GENERATED EXPLANATION")
+    print("GENERATED EXPLANATION")
     print("=" * 60)
     print(f"\nRisk Level: {explanation['risk_level']}")
     print(f"Risk Score: {explanation['risk_score']}")
@@ -337,7 +337,7 @@ def main():
         print(f"  • {reason}")
     
     print("\n" + "=" * 60)
-    print("✅ Explanation engine ready for integration")
+    print("Explanation engine ready for integration")
     print("=" * 60)
 
 

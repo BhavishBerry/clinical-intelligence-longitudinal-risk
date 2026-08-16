@@ -14,9 +14,9 @@ Its single responsibility is:
 > compute risk,  
 > and explain *why* risk is rising.
 
-❌ No diagnosis  
-❌ No treatment decisions  
-✅ Decision support only
+No diagnosis  
+No treatment decisions  
+Decision support only
 
 ---
 

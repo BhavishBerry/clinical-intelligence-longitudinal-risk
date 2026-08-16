@@ -24,25 +24,25 @@ def print_header(title):
 def run_pipeline(patient_name: str, patient_data: dict, router: ModelRouter, explainer: ExplanationEngine):
     """Run full pipeline for a patient."""
     print(f"\n{'─' * 70}")
-    print(f"👤 PATIENT: {patient_name}")
+    print(f"PATIENT: {patient_name}")
     print(f"{'─' * 70}")
     
     # Stage 1-2: Display raw data (simulated timeline conversion)
-    print("\n📋 STAGE 1-2: Raw Data → Timeline")
+    print("\nSTAGE 1-2: Raw Data → Timeline")
     print("   Input features:")
     for k, v in patient_data.items():
         if v != 0:
             print(f"      • {k}: {v}")
     
     # Stage 3: Trend features (already computed in input)
-    print("\n📈 STAGE 3: Trend Features Extracted")
+    print("\nSTAGE 3: Trend Features Extracted")
     sugar_features = {k: v for k, v in patient_data.items() if 'sugar' in k and v != 0}
     bp_features = {k: v for k, v in patient_data.items() if 'bp' in k and v != 0}
     print(f"   Sugar trends: {len(sugar_features)} features")
     print(f"   BP trends: {len(bp_features)} features")
     
     # Stage 4: Risk scoring (via intelligent router)
-    print("\n🎯 STAGE 4: Risk Scoring (Model Router)")
+    print("\nSTAGE 4: Risk Scoring (Model Router)")
     result = router.predict(patient_data)
     print(f"   Model selected: {result['model_used']}")
     print(f"   Routing reason: {result['routing_reason']}")
@@ -51,7 +51,7 @@ def run_pipeline(patient_name: str, patient_data: dict, router: ModelRouter, exp
     print(f"   Confidence: {result['confidence']:.1%}")
     
     # Stage 5: Explanation generation
-    print("\n💬 STAGE 5: Explanation (Rule-Based)")
+    print("\nSTAGE 5: Explanation (Rule-Based)")
     explanation = explainer.explain(patient_data, result)
     print("   Contributing factors:")
     for factor in explanation.get('contributing_factors', [])[:3]:
@@ -59,10 +59,10 @@ def run_pipeline(patient_name: str, patient_data: dict, router: ModelRouter, exp
     summary = explanation.get('summary', 'No summary')
     if isinstance(summary, list):
         summary = '; '.join(summary[:2])
-    print(f"\n   Summary: {summary[:100]}...")
+    print(f"\n  Summary: {summary[:100]}...")
     
     # Stage 6: UI Output (simulated)
-    print("\n🖥️ STAGE 6: UI Output")
+    print("\nSTAGE 6: UI Output")
     print(f"   ┌{'─' * 40}┐")
     print(f"   │ Risk Alert: {result['risk_level']:<26}│")
     print(f"   │ Score: {result['risk_score']:.0%} ({result['model_used']:<20})│")
@@ -73,7 +73,7 @@ def run_pipeline(patient_name: str, patient_data: dict, router: ModelRouter, exp
 
 
 def main():
-    print_header("🏥 CLINICAL INTELLIGENCE PLATFORM - PIPELINE DRY RUN")
+    print_header("CLINICAL INTELLIGENCE PLATFORM - PIPELINE DRY RUN")
     print("\nLoading models and explainers...")
     
     router = ModelRouter()
@@ -193,7 +193,7 @@ def main():
     # =========================================================================
     # SUMMARY
     # =========================================================================
-    print_header("📊 PIPELINE SUMMARY")
+    print_header("PIPELINE SUMMARY")
     print("""
     ┌────────────────────────────────────────────────────────────────┐
     │                    PIPELINE STAGES                             │

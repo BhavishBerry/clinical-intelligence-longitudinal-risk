@@ -34,11 +34,11 @@ try:
     from model_service import ModelService, get_service
     MODEL_SERVICE = get_service()
     USE_SERVICE = MODEL_SERVICE.health_check()['healthy']
-    print(f"✓ Model Service loaded - Available models: {MODEL_SERVICE.health_check()['available_models']}")
+    print(f"Model Service loaded - Available models: {MODEL_SERVICE.health_check()['available_models']}")
 except Exception as e:
     MODEL_SERVICE = None
     USE_SERVICE = False
-    print(f"⚠ Model Service not available, using basic model: {e}")
+    print(f"Model Service not available, using basic model: {e}")
 
 
 # =============================================================================
@@ -127,9 +127,9 @@ try:
     from .database import init_db
     app.include_router(db_router, tags=["Database"])
     init_db()  # Ensure tables exist
-    print("✓ Database routes loaded")
+    print("Database routes loaded")
 except Exception as e:
-    print(f"⚠ Database routes not available: {e}")
+    print(f"Database routes not available: {e}")
 
 
 # =============================================================================
@@ -432,7 +432,7 @@ def score_features(features: TrendFeatures):
 
 if __name__ == "__main__":
     import uvicorn
-    print("🏥 Starting Clinical Intelligence Platform API...")
+    print("Starting Clinical Intelligence Platform API...")
     print(f"   Model loaded: {MODEL is not None}")
     print(f"   Patients: {len(list_patients())}")
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -222,7 +222,7 @@ def init_db():
         Path("./data").mkdir(exist_ok=True)
     
     Base.metadata.create_all(bind=engine)
-    print(f"✓ Database initialized: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL}")
+    print(f"Database initialized: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL}")
 
 
 def seed_demo_data():
@@ -326,11 +326,11 @@ def seed_demo_data():
         db.add_all(alerts)
         
         db.commit()
-        print("✓ Demo data seeded successfully")
+        print("Demo data seeded successfully")
         
     except Exception as e:
         db.rollback()
-        print(f"✗ Error seeding data: {e}")
+        print(f"Error seeding data: {e}")
     finally:
         db.close()
 

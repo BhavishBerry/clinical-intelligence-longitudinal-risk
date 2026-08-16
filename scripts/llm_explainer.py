@@ -23,7 +23,7 @@ try:
     OLLAMA_AVAILABLE = True
 except ImportError:
     OLLAMA_AVAILABLE = False
-    print("⚠️ Ollama not installed. Run: pip install ollama")
+    print("Ollama not installed. Run: pip install ollama")
 
 
 # =============================================================================
@@ -67,7 +67,7 @@ class LLMExplainer:
             try:
                 ollama.list()
             except Exception as e:
-                print(f"⚠️ Ollama not running: {e}")
+                print(f"Ollama not running: {e}")
                 self.available = False
     
     def polish(self, explanation_facts: List[str], risk_level: str = "MEDIUM") -> str:
@@ -112,13 +112,13 @@ Write a clear, professional summary:"""
             unsafe_phrases = ["should", "recommend", "diagnosis", "diagnose", "treat", "prescribe"]
             for phrase in unsafe_phrases:
                 if phrase.lower() in polished.lower():
-                    print(f"⚠️ Safety check failed: '{phrase}' found in output")
+                    print(f"Safety check failed: '{phrase}' found in output")
                     return "; ".join(explanation_facts)
             
             return polished
             
         except Exception as e:
-            print(f"⚠️ LLM error: {e}")
+            print(f"LLM error: {e}")
             return "; ".join(explanation_facts)
     
     def polish_explanation(self, explanation: Dict[str, Any]) -> Dict[str, Any]:
@@ -159,22 +159,22 @@ def create_llm_explainer() -> LLMExplainer:
 def main():
     """Demo the LLM explanation polisher."""
     print("=" * 60)
-    print("🏥 Clinical Intelligence Platform - LLM Explainer Demo")
+    print("Clinical Intelligence Platform - LLM Explainer Demo")
     print(f"   Using model: {MODEL_NAME}")
     print("=" * 60)
     
     # Check Ollama availability
     if not OLLAMA_AVAILABLE:
-        print("\n❌ Ollama not installed. Run: pip install ollama")
+        print("\nOllama not installed. Run: pip install ollama")
         return
     
     explainer = LLMExplainer()
     
     if not explainer.available:
-        print("\n❌ Ollama not running. Start with: ollama serve")
+        print("\nOllama not running. Start with: ollama serve")
         return
     
-    print("\n✓ Ollama connected, model available")
+    print("\nOllama connected, model available")
     
     # Sample facts from rule-based engine
     sample_facts = [
@@ -183,18 +183,18 @@ def main():
         "Medication was started late in the observation period",
     ]
     
-    print("\n📋 Input Facts:")
+    print("\nInput Facts:")
     for fact in sample_facts:
         print(f"   • {fact}")
     
-    print("\n🤖 Generating polished explanation...")
+    print("\nGenerating polished explanation...")
     polished = explainer.polish(sample_facts, "HIGH")
     
-    print("\n✨ Polished Output:")
+    print("\nPolished Output:")
     print(f"   {polished}")
     
     print("\n" + "=" * 60)
-    print("✅ LLM Explainer ready for integration")
+    print("LLM Explainer ready for integration")
     print("=" * 60)
 
 

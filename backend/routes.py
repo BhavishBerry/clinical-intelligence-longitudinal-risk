@@ -472,7 +472,7 @@ def create_vital(vital: VitalCreate, db: Session = Depends(get_db), current_user
                     )
                     db.add(new_alert)
                     db.commit()
-                    print(f"✓ Auto-generated alert for patient {vital.patient_id}")
+                    print(f"Auto-generated alert for patient {vital.patient_id}")
     except Exception as e:
         # Don't fail the vital creation if risk scoring fails
         print(f"Warning: Auto risk scoring failed: {e}")

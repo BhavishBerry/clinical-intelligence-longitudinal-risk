@@ -72,24 +72,24 @@ DATASETS = [
 
 def setup_directories():
     """Create data directory structure."""
-    print("\n📁 Setting up directories...")
+    print("\nSetting up directories...")
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"   ✓ Created {RAW_DIR}")
-    print(f"   ✓ Created {PROCESSED_DIR}")
+    print(f"   Created {RAW_DIR}")
+    print(f"   Created {PROCESSED_DIR}")
 
 
 def authenticate_kaggle():
     """Authenticate with Kaggle API."""
-    print("\n🔐 Authenticating with Kaggle...")
+    print("\nAuthenticating with Kaggle...")
     try:
         api = KaggleApi()
         api.authenticate()
-        print("   ✓ Authentication successful")
+        print("   Authentication successful")
         return api
     except Exception as e:
-        print(f"\n❌ Kaggle authentication failed: {e}")
-        print("\n📋 To fix this:")
+        print(f"\nKaggle authentication failed: {e}")
+        print("\nTo fix this:")
         print("   1. Go to https://www.kaggle.com/settings")
         print("   2. Click 'Create New Token' to download kaggle.json")
         print("   3. Place it in: C:\\Users\\<username>\\.kaggle\\kaggle.json")
@@ -105,7 +105,7 @@ def download_dataset(api, dataset_info):
     target_dir = RAW_DIR / folder
     target_dir.mkdir(parents=True, exist_ok=True)
     
-    print(f"\n📥 Downloading: {description}")
+    print(f"\nDownloading: {description}")
     print(f"   Dataset: {name}")
     
     try:
@@ -123,7 +123,7 @@ def download_dataset(api, dataset_info):
         
         # List downloaded files
         files = list(target_dir.glob("*"))
-        print(f"   ✓ Downloaded {len(files)} file(s) to {folder}/")
+        print(f"   Downloaded {len(files)} file(s) to {folder}/")
         for f in files[:5]:  # Show first 5 files
             size_mb = f.stat().st_size / (1024 * 1024)
             print(f"      - {f.name} ({size_mb:.2f} MB)")
@@ -131,7 +131,7 @@ def download_dataset(api, dataset_info):
         return True
         
     except Exception as e:
-        print(f"   ❌ Failed to download {name}: {e}")
+        print(f"   Failed to download {name}: {e}")
         return False
 
 
@@ -167,13 +167,13 @@ data/
 """
     readme_path = DATA_DIR / "README.md"
     readme_path.write_text(readme_content)
-    print(f"\n📄 Created {readme_path}")
+    print(f"\nCreated {readme_path}")
 
 
 def print_summary():
     """Print download summary."""
     print("\n" + "=" * 60)
-    print("✅ DOWNLOAD COMPLETE")
+    print("DOWNLOAD COMPLETE")
     print("=" * 60)
     print(f"\nData location: {DATA_DIR}")
     print("\nNext steps:")
@@ -190,7 +190,7 @@ def print_summary():
 
 def main():
     print("=" * 60)
-    print("🏥 Clinical Intelligence Platform - Dataset Downloader")
+    print("Clinical Intelligence Platform - Dataset Downloader")
     print("=" * 60)
     
     # Setup
@@ -198,7 +198,7 @@ def main():
     api = authenticate_kaggle()
     
     # Download each dataset
-    print("\n📦 Downloading datasets...")
+    print("\nDownloading datasets...")
     success_count = 0
     
     for dataset in tqdm(DATASETS, desc="Overall progress"):
@@ -213,7 +213,7 @@ def main():
     print(f"\nDownloaded {success_count}/{len(DATASETS)} datasets successfully.")
     
     if success_count < len(DATASETS):
-        print("\n⚠️  Some downloads failed. Check your Kaggle API key and internet connection.")
+        print("\nSome downloads failed. Check your Kaggle API key and internet connection.")
         sys.exit(1)
 
 

@@ -362,7 +362,7 @@ def save_as_json(patients: List[Dict], output_dir: Path):
         }
         filepath.write_text(json.dumps(timeline_data, indent=2))
     
-    print(f"   ✓ Saved {len(patients)} timeline JSON files to {timeline_dir}")
+    print(f"   Saved {len(patients)} timeline JSON files to {timeline_dir}")
 
 
 def save_training_csv(patients: List[Dict], output_dir: Path):
@@ -390,12 +390,12 @@ def save_training_csv(patients: List[Dict], output_dir: Path):
             writer.writeheader()
             writer.writerows(rows)
     
-    print(f"   ✓ Saved training CSV to {filepath}")
+    print(f"   Saved training CSV to {filepath}")
     
     # Print label distribution
     label_1 = sum(1 for r in rows if r["label"] == 1)
     label_0 = len(rows) - label_1
-    print(f"   ✓ Label distribution: {label_0} stable (0), {label_1} deteriorating (1)")
+    print(f"   Label distribution: {label_0} stable (0), {label_1} deteriorating (1)")
 
 
 def save_summary(patients: List[Dict], output_dir: Path):
@@ -411,7 +411,7 @@ def save_summary(patients: List[Dict], output_dir: Path):
     
     filepath = output_dir / "generation_summary.json"
     filepath.write_text(json.dumps(summary, indent=2))
-    print(f"   ✓ Saved summary to {filepath}")
+    print(f"   Saved summary to {filepath}")
 
 
 # =============================================================================
@@ -426,14 +426,14 @@ def main():
     args = parser.parse_args()
     
     print("=" * 60)
-    print("🏥 Clinical Intelligence Platform - Synthetic Data Generator")
+    print("Clinical Intelligence Platform - Synthetic Data Generator")
     print("=" * 60)
     
     output_dir = Path(args.output)
     num_deteriorating = int(args.patients * args.deterioration_ratio)
     num_stable = args.patients - num_deteriorating
     
-    print(f"\n📊 Generating {args.patients} patients...")
+    print(f"\nGenerating {args.patients} patients...")
     print(f"   - {num_stable} stable (label=0)")
     print(f"   - {num_deteriorating} deteriorating (label=1)")
     
@@ -450,13 +450,13 @@ def main():
     random.shuffle(patients)
     
     # Save outputs
-    print("\n💾 Saving data...")
+    print("\nSaving data...")
     save_as_json(patients, output_dir)
     save_training_csv(patients, output_dir)
     save_summary(patients, output_dir)
     
     print("\n" + "=" * 60)
-    print("✅ GENERATION COMPLETE")
+    print("GENERATION COMPLETE")
     print("=" * 60)
     print(f"\nOutput location: {output_dir}")
     print("\nGenerated files:")

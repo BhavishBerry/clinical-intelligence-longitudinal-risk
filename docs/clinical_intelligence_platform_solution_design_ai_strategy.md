@@ -9,7 +9,7 @@ This is written as **project documentation**, not marketing.
 
 ---
 
-## 🔴 Problem 1: Visits Are Treated as Isolated Events
+## Problem 1: Visits Are Treated as Isolated Events
 
 ### Why This Is a Real Problem
 - EMRs close a visit and move on
@@ -20,7 +20,7 @@ This makes disease progression invisible.
 
 ---
 
-### ✅ Solution: Persistent Patient Timeline
+### Solution: Persistent Patient Timeline
 
 #### Concept
 The patient is **not a database row**.
@@ -60,7 +60,7 @@ Patient Raj
 
 ---
 
-## 🔴 Problem 2: Humans Can’t See Slow Trends
+## Problem 2: Humans Can’t See Slow Trends
 
 ### Why This Is a Real Problem
 - Gradual changes feel harmless
@@ -69,7 +69,7 @@ Patient Raj
 
 ---
 
-### ✅ Solution: Trend Extraction Engine
+### Solution: Trend Extraction Engine
 
 #### Concept
 Every numeric clinical metric becomes a **time series**.
@@ -105,7 +105,7 @@ The system knows:
 
 ---
 
-## 🔴 Problem 3: Alerts Fire Too Late or Too Often
+## Problem 3: Alerts Fire Too Late or Too Often
 
 ### Why This Is Dangerous
 - Hard thresholds miss early risk
@@ -113,7 +113,7 @@ The system knows:
 
 ---
 
-### ✅ Solution: Trend-Based Risk Reasoning
+### Solution: Trend-Based Risk Reasoning
 
 #### Concept
 Replace hard rules:
@@ -151,7 +151,7 @@ This creates a **risk curve**, not a binary alarm.
 
 ---
 
-## 🔴 Problem 4: Doctors Don’t Trust Black-Box Alerts
+## Problem 4: Doctors Don’t Trust Black-Box Alerts
 
 ### Why Trust Fails
 - Systems say “high risk” without explanation
@@ -159,7 +159,7 @@ This creates a **risk curve**, not a binary alarm.
 
 ---
 
-### ✅ Solution: Explainable Risk Summaries
+### Solution: Explainable Risk Summaries
 
 #### Concept
 Every alert must answer:
@@ -190,7 +190,7 @@ Example:
 
 ---
 
-## 🔴 Problem 5: No Feedback Loop Exists
+## Problem 5: No Feedback Loop Exists
 
 ### Why This Matters
 - Systems never improve
@@ -198,7 +198,7 @@ Example:
 
 ---
 
-### ✅ Solution: Human-in-the-Loop Feedback
+### Solution: Human-in-the-Loop Feedback
 
 #### Concept
 Doctors can:
@@ -228,7 +228,7 @@ System tracks:
 
 ---
 
-## 🔴 Problem 6: Chronic and Acute Risk Are Handled Separately
+## Problem 6: Chronic and Acute Risk Are Handled Separately
 
 ### Why This Is Inefficient
 - Same reasoning applies
@@ -236,7 +236,7 @@ System tracks:
 
 ---
 
-### ✅ Solution: Time-Scale-Agnostic Design
+### Solution: Time-Scale-Agnostic Design
 
 #### Concept
 The same logic handles:
@@ -261,7 +261,7 @@ Only the **time window** changes.
 
 ---
 
-## 🔴 Problem 7: Safety & Responsibility
+## Problem 7: Safety & Responsibility
 
 ### Why This Is Critical
 - AI must not diagnose
@@ -269,7 +269,7 @@ Only the **time window** changes.
 
 ---
 
-### ✅ Solution: Decision Support, Not Decisions
+### Solution: Decision Support, Not Decisions
 
 #### Concept
 System outputs:
@@ -296,7 +296,7 @@ Never:
 
 ---
 
-## 🧩 End-to-End Solution Flow
+## End-to-End Solution Flow
 
 ```
 Raw Patient Data
@@ -318,7 +318,7 @@ Each layer exists to fix a **specific real-world failure**.
 
 ---
 
-## 🧠 Key Insight
+## Key Insight
 
 This system does **not replace doctors**.
 
@@ -328,7 +328,7 @@ That is why it is powerful, safe, and realistic.
 
 ---
 
-## 🚀 Proposed Implementation Stack (High Level)
+## Proposed Implementation Stack (High Level)
 
 - **Language:** Python
 - **ML Framework:** PyTorch
@@ -339,7 +339,7 @@ That is why it is powerful, safe, and realistic.
 
 ---
 
-## 📌 Project Direction
+## Project Direction
 
 This repository prioritizes:
 - system design

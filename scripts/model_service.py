@@ -147,13 +147,13 @@ class ModelService:
                     with open(model_path, 'rb') as f:
                         self.models[name] = pickle.load(f)
                     self.health_status[name] = True
-                    logger.info(f"✓ Loaded {name} model")
+                    logger.info(f"Loaded {name} model")
                 else:
                     self.health_status[name] = False
-                    logger.warning(f"✗ {name} model not found at {model_path}")
+                    logger.warning(f"{name} model not found at {model_path}")
             except Exception as e:
                 self.health_status[name] = False
-                logger.error(f"✗ Failed to load {name} model: {e}")
+                logger.error(f"Failed to load {name} model: {e}")
         
         # Load metadata
         meta_path = MODELS_DIR / "specialty_models_metadata.json"
