@@ -1,6 +1,8 @@
 {
   "model_name": "logistic_regression",
   "trained_at": "2026-01-03T15:26:42.311143",
+  "data_source": "synthetic",
+  "note": "Trained on rule-generated synthetic data, where the label is a fixed function of two input features (percent_change > 25 and duration > 12 months). Near-perfect scores here only confirm the model can recover that rule; they are not a measure of clinical performance. For real numbers see real_data_metadata.json and specialty_models_metadata.json.",
   "features": [
     "age",
     "sex",

@@ -1,5 +1,6 @@
 {
-  "trained_at": "2026-01-03T23:36:07.226038",
+  "trained_at": "2026-08-16T17:48:10.859538",
+  "random_seed": 42,
   "models": {
     "diabetes": {
       "name": "diabetes",
@@ -18,13 +19,15 @@
       ],
       "samples": 70692,
       "metrics": {
-        "accuracy": 1.0,
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
-        "roc_auc": 1.0
+        "accuracy": 0.720843058207794,
+        "precision": 0.7051787592008412,
+        "recall": 0.7589475173291838,
+        "f1": 0.7310758329358861,
+        "roc_auc": 0.786634743845421,
+        "roc_auc_cv_mean": 0.7850796868818586,
+        "roc_auc_cv_std": 0.0034474145675293106
       },
-      "model_path": "C:\\Users\\berry\\Downloads\\python projects\\clinical_intelligence_platoform\\models\\diabetes_model.pkl"
+      "model_path": "models/diabetes_model.pkl"
     },
     "cardiac": {
       "name": "cardiac",
@@ -41,13 +44,15 @@
       ],
       "samples": 4625,
       "metrics": {
-        "accuracy": 0.8248648648648649,
-        "precision": 0.7558139534883721,
-        "recall": 0.3155339805825243,
-        "f1": 0.4452054794520548,
-        "roc_auc": 0.7767867993572517
+        "accuracy": 0.8227027027027027,
+        "precision": 0.7058823529411765,
+        "recall": 0.34951456310679613,
+        "f1": 0.4675324675324675,
+        "roc_auc": 0.7692014259286766,
+        "roc_auc_cv_mean": 0.7814447415900789,
+        "roc_auc_cv_std": 0.018598701840677242
       },
-      "model_path": "C:\\Users\\berry\\Downloads\\python projects\\clinical_intelligence_platoform\\models\\cardiac_model.pkl"
+      "model_path": "models/cardiac_model.pkl"
     },
     "general": {
       "name": "general",
@@ -72,14 +77,15 @@
       ],
       "samples": 75317,
       "metrics": {
-        "accuracy": 0.9891795007966012,
-        "precision": 0.9938888888888889,
-        "recall": 0.9836426116838488,
-        "f1": 0.9887392055267703,
-        "roc_auc": 0.9994421421698325
+        "accuracy": 0.7221853425385024,
+        "precision": 0.7007536382536382,
+        "recall": 0.7413058419243986,
+        "f1": 0.7204595551399372,
+        "roc_auc": 0.7921234413321456,
+        "roc_auc_cv_mean": 0.7961733742516044,
+        "roc_auc_cv_std": 0.003693939081323061
       },
-      "model_path": "C:\\Users\\berry\\Downloads\\python projects\\clinical_intelligence_platoform\\models\\general_model.pkl"
+      "model_path": "models/general_model.pkl"
     }
-  },
-  "model_selector": "\ndef select_model(available_features: list) -> str:\n    \"\"\"\n    Select the best model based on which features the doctor has available.\n    \n    Args:\n        available_features: List of feature names the doctor has data for\n        \n    Returns:\n        Model name to use: 'diabetes', 'cardiac', or 'general'\n    \"\"\"\n    diabetes_features = {'sugar_percent_change', 'sugar_trend_up', 'sugar_velocity'}\n    cardiac_features = {'bp_percent_change', 'bp_trend_up', 'bp_velocity'}\n    \n    available = set(available_features)\n    \n    has_diabetes = len(diabetes_features & available) >= 2\n    has_cardiac = len(cardiac_features & available) >= 2\n    \n    if has_diabetes and not has_cardiac:\n        return 'diabetes'\n    elif has_cardiac and not has_diabetes:\n        return 'cardiac'\n    else:\n        return 'general'\n"
+  }
 }

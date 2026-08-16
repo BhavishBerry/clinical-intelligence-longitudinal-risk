@@ -71,15 +71,15 @@ LABEL_COLUMN = "label"
 
 def load_data(data_path: Path) -> pd.DataFrame:
     """Load and validate training data."""
-    print(f"\n📂 Loading data from {data_path}")
+    print(f"\nLoading data from {data_path}")
     
     df = pd.read_csv(data_path)
-    print(f"   ✓ Loaded {len(df)} samples")
+    print(f"   Loaded {len(df)} samples")
     
     # Validate columns
     missing_features = [f for f in FEATURE_COLUMNS if f not in df.columns]
     if missing_features:
-        print(f"   ⚠️ Warning: Missing features: {missing_features}")
+        print(f"   Warning: Missing features: {missing_features}")
         # Remove missing features from training
         for f in missing_features:
             FEATURE_COLUMNS.remove(f)
@@ -87,8 +87,8 @@ def load_data(data_path: Path) -> pd.DataFrame:
     if LABEL_COLUMN not in df.columns:
         raise ValueError(f"Missing label column: {LABEL_COLUMN}")
     
-    print(f"   ✓ Features: {FEATURE_COLUMNS}")
-    print(f"   ✓ Label distribution: {df[LABEL_COLUMN].value_counts().to_dict()}")
+    print(f"   Features: {FEATURE_COLUMNS}")
+    print(f"   Label distribution: {df[LABEL_COLUMN].value_counts().to_dict()}")
     
     return df
 
@@ -112,7 +112,7 @@ def prepare_features(df: pd.DataFrame):
 
 def train_logistic_regression(X_train, y_train, X_test, y_test):
     """Train Logistic Regression model (Phase 1)."""
-    print("\n🔬 Training Logistic Regression...")
+    print("\nTraining Logistic Regression...")
     
     # Scale features
     scaler = StandardScaler()
@@ -138,7 +138,7 @@ def train_logistic_regression(X_train, y_train, X_test, y_test):
 
 def train_gradient_boosting(X_train, y_train, X_test, y_test):
     """Train Gradient Boosting model (Phase 2)."""
-    print("\n🌲 Training Gradient Boosting...")
+    print("\nTraining Gradient Boosting...")
     
     model = GradientBoostingClassifier(
         n_estimators=100,
@@ -162,7 +162,7 @@ def train_gradient_boosting(X_train, y_train, X_test, y_test):
 
 def evaluate_model(y_true, y_pred, y_prob, model_name: str) -> dict:
     """Evaluate model performance."""
-    print(f"\n📊 {model_name} Results:")
+    print(f"\n{model_name} Results:")
     
     metrics = {
         "accuracy": accuracy_score(y_true, y_pred),
@@ -180,7 +180,7 @@ def evaluate_model(y_true, y_pred, y_prob, model_name: str) -> dict:
     
     # Confusion matrix
     cm = confusion_matrix(y_true, y_pred)
-    print(f"\n   Confusion Matrix:")
+    print(f"\n  Confusion Matrix:")
     print(f"   TN={cm[0,0]:3d}  FP={cm[0,1]:3d}")
     print(f"   FN={cm[1,0]:3d}  TP={cm[1,1]:3d}")
     
@@ -272,7 +272,7 @@ def save_model(model, scaler, feature_names: list, metrics: dict, model_name: st
     model_path = MODEL_OUTPUT_DIR / f"{model_name}_model.pkl"
     with open(model_path, 'wb') as f:
         pickle.dump(model, f)
-    print(f"\n💾 Saved model to {model_path}")
+    print(f"\nSaved model to {model_path}")
     
     # Save scaler if exists
     if scaler:
@@ -285,6 +285,14 @@ def save_model(model, scaler, feature_names: list, metrics: dict, model_name: st
     metadata = {
         "model_name": model_name,
         "trained_at": datetime.now().isoformat(),
+        "data_source": "synthetic",
+        "note": (
+            "Trained on rule-generated synthetic data, where the label is a fixed "
+            "function of two input features (percent_change > 25 and duration > 12 "
+            "months). Near-perfect scores here only confirm the model can recover "
+            "that rule; they are not a measure of clinical performance. For real "
+            "numbers see real_data_metadata.json and specialty_models_metadata.json."
+        ),
         "features": feature_names,
         "metrics": metrics,
         "feature_importance": get_feature_importance(model, feature_names),
@@ -312,7 +320,7 @@ def main():
     args = parser.parse_args()
     
     print("=" * 60)
-    print("🏥 Clinical Intelligence Platform - Risk Model Training")
+    print("Clinical Intelligence Platform - Risk Model Training")
     print("=" * 60)
     
     # Load data
@@ -320,7 +328,7 @@ def main():
     X, y, feature_names = prepare_features(df)
     
     # Split data
-    print(f"\n📊 Splitting data ({1-args.test_size:.0%} train, {args.test_size:.0%} test)...")
+    print(f"\nSplitting data ({1-args.test_size:.0%} train, {args.test_size:.0%} test)...")
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=args.test_size, random_state=42, stratify=y
     )
@@ -335,7 +343,7 @@ def main():
         save_model(model, scaler, feature_names, metrics, "logistic_regression")
         
         # Demo scoring
-        print("\n🎯 Demo: Scoring a sample patient...")
+        print("\nDemo: Scoring a sample patient...")
         sample = X_test.iloc[0].to_dict()
         scorer = create_risk_scorer(model, scaler, feature_names)
         result = scorer(sample)
@@ -349,7 +357,7 @@ def main():
         save_model(model, scaler, feature_names, metrics, "gradient_boosting")
     
     print("\n" + "=" * 60)
-    print("✅ TRAINING COMPLETE")
+    print("TRAINING COMPLETE")
     print("=" * 60)
     print(f"\nModels saved to: {MODEL_OUTPUT_DIR}")
     print("\nNext steps:")
